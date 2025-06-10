@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stdexcept>
 #include <vector>
 
 template <class T>
@@ -73,7 +72,7 @@ public:
             for (int y = 0; y < m_height; y++) {
                 for (int x = 0; x < m_width; x++) {
                     T val = m_data[index(x, y, z)];
-                    function(x, y, z, val);
+                    function(val, x, y, z);
                 }
             }
         }
@@ -116,3 +115,4 @@ public:
     size_t width() const { return m_width; }
     size_t height() const { return m_height; }
 };
+
