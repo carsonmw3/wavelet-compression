@@ -36,52 +36,6 @@ struct DataResult {
 };
 
 
-
-// Function to split the box into blocks
-std::vector<Box3D> to_blocks(Box3D const& box, int block_dim, float junk) {
-
-    int xdim = box.width();
-    int ydim = box.height();
-    int zdim = box.depth();
-
-    int x_steps = (xdim + block_dim - 1) / block_dim;
-    int y_steps = (ydim + block_dim - 1) / block_dim;
-    int z_steps = (zdim + block_dim - 1) / block_dim;
-
-    std::vector<Box3D> blocks;
-
-    for (int k = 0; k < z_steps; ++k) {
-        for (int j = 0; j < y_steps; ++j) {
-            for (int i = 0; i < x_steps; ++i) {
-
-                int x_lo = i * block_dim;
-                int y_lo = j * block_dim;
-                int z_lo = k * block_dim;
-
-                int x_hi = std::min(x_lo + block_dim, xdim);
-                int y_hi = std::min(y_lo + block_dim, ydim);
-                int z_hi = std::min(z_lo + block_dim, zdim);
-
-                auto block = Box3D(block_dim, block_dim, block_dim, junk);
-
-                for (int x = x_lo; x < x_hi; ++x) {
-                    for (int y = y_lo; y < y_hi; ++y) {
-                        for (int z = z_lo; z < z_hi; ++z) {
-                            block(x - x_lo, y - y_lo, z - z_lo) = box(x, y, z);
-                        }
-                    }
-                }
-
-                blocks.push_back(std::move(block));
-            }
-        }
-    }
-
-    return blocks;
-}
-
-
-
 void write_float(std::ofstream& stream, float val) {
     stream.write(reinterpret_cast<const char*>(&val), sizeof(float));
 }
