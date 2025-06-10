@@ -9,37 +9,33 @@
 #include <filesystem>
 #include <fstream>
 #include <numeric>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
 
-
-// Hyperparameters
-// int min_time = 74;
-// int max_time = 74;
-// int min_level = 0;
-// int max_level = 3;
-// int component = 6;
-
 std::string compressed_dir = "../../wavelet/";
 
-// string wavelet = "db3";
-// float keep = 0.9999;
-
-
-// Typedef for readability
+// Typedefs for readability
 using Box3D    = Grid3D<float>;
 using Volume3D = Grid3D<float>;
-
+using LocDimData = std::vector<std::vector<std::vector<std::vector<int>>>>;
 
 struct CompressedWavelet {
     std::vector<int> shape;
     std::vector<int> coeff_shape;
-    // vector<vector<int>> coeff_slices;
     std::vector<std::pair<int, int16_t>> rle_encoded;
-    // string wavelet;
 };
+
+struct DataResult {
+    std::vector<std::vector<std::vector<Box3D>>> boxes;
+    LocDimData                                   locations;
+    LocDimData                                   dimensions;
+    std::vector<std::vector<int>>                box_counts;
+    float                                        min_value;
+    float                                        max_value;
+};
+
+
 
 // Function to split the box into blocks
 std::vector<Box3D> to_blocks(Box3D const& box, int block_dim, float junk) {
@@ -85,26 +81,20 @@ std::vector<Box3D> to_blocks(Box3D const& box, int block_dim, float junk) {
 }
 
 
-// Read a float from file
-float read_float(std::ifstream& file) {
-    float val;
-    file.read(reinterpret_cast<char*>(&val), sizeof(float));
-    return val;
+
+void write_float(std::ofstream& stream, float val) {
+    stream.write(reinterpret_cast<const char*>(&val), sizeof(float));
 }
 
-struct DataResult {
-    std::vector<std::vector<std::vector<Box3D>>>            boxes;
-    std::vector<std::vector<std::vector<std::vector<int>>>> locations;
-    std::vector<std::vector<std::vector<std::vector<int>>>> dimensions;
-    std::vector<std::vector<int>>                           box_counts;
-};
 
-// std::tuple<vector<vector<vector<Box3D>>>,       // boxes[time][level][box]
-//            vector<vector<vector<vector<int>>>>, //
-//            locations[time][level][box] vector<vector<vector<vector<int>>>>,
-//            // dimensions[time][level][box] vector<vector<int>> //
-//            box_counts[time][level]
-//            >
+float read_float(std::ifstream& stream) {
+    float value;
+    stream.read(reinterpret_cast<char*>(&value), sizeof(float));
+    return value;
+}
+
+
+
 DataResult process_data(std::string const& dir_prefix,
                         int                min_time,
                         int                max_time,
@@ -118,6 +108,11 @@ DataResult process_data(std::string const& dir_prefix,
     auto& locations  = ret.locations;
     auto& dimensions = ret.dimensions;
     auto& box_counts = ret.box_counts;
+    auto& minval     = ret.min_value;
+    auto& maxval     = ret.max_value;
+
+    minval = std::numeric_limits<float>::max();
+    maxval = std::numeric_limits<float>::min();
 
     for (int t = min_time; t <= max_time; ++t) {
         std::vector<std::vector<Box3D>>            boxes_t;
@@ -174,6 +169,14 @@ DataResult process_data(std::string const& dir_prefix,
                         for (int i = 0; i < xdim; ++i) {
                             float value  = read_float(file);
                             box(i, j, k) = value;
+
+                            if (value < minval) {
+                                minval = value;
+                            }
+
+                            if (value > maxval) {
+                                maxval = value;
+                            }
                         }
                     }
                 }
@@ -198,22 +201,43 @@ DataResult process_data(std::string const& dir_prefix,
 }
 
 
-void write_loc_dim_to_bin(
-    std::vector<std::vector<std::vector<std::vector<int>>>> data,
-    std::string                                             path,
-    std::string                                             out_file,
-    int                                                     max_time,
-    int                                                     min_time,
-    int                                                     min_level,
-    int                                                     max_level) {
-
-    std::string filename = path + out_file;
-
+std::ofstream open_write(std::string path, std::string outfile) {
+    std::string   filename = path + outfile;
     std::ofstream file(filename, std::ios::binary);
+
     if (!file.is_open()) {
-        spdlog::error("Could not open file: {}", filename);
+        spdlog::error("Failed to open file: {}", filename);
         exit(EXIT_FAILURE);
     }
+
+    return file;
+}
+
+
+
+std::ifstream open_read(std::string path, std::string infile) {
+    std::string   filename = path + infile;
+    std::ifstream file(filename, std::ios::binary);
+
+    if (!file.is_open()) {
+        spdlog::error("Failed to open file: {}", filename);
+        exit(EXIT_FAILURE);
+    }
+
+    return file;
+}
+
+
+
+void write_loc_dim_to_bin(LocDimData  data,
+                          std::string path,
+                          std::string out_file,
+                          int         max_time,
+                          int         min_time,
+                          int         min_level,
+                          int         max_level) {
+
+    std::ofstream file = open_write(path, out_file);
 
     for (int t = 0; t < max_time - min_time + 1; t++) {
 
@@ -224,7 +248,7 @@ void write_loc_dim_to_bin(
                 for (int coord = 0; coord < 3; coord++) {
 
                     float value = data[t][lev][box_idx][coord];
-                    file.write(reinterpret_cast<char*>(&value), sizeof(float));
+                    write_float(file, value);
                 }
             }
         }
@@ -233,25 +257,19 @@ void write_loc_dim_to_bin(
     file.close();
 }
 
-// TODO: Encapsulate these types
-std::vector<std::vector<std::vector<std::vector<int>>>>
-read_loc_dim_from_bin(std::string const&            path,
-                      std::string const&            in_file,
-                      std::vector<std::vector<int>> counts,
-                      int                           max_time,
-                      int                           min_time,
-                      int                           min_level,
-                      int                           max_level) {
 
-    std::string   filename = path + in_file;
-    std::ifstream file(filename, std::ios::binary);
 
-    if (!file.is_open()) {
-        spdlog::error("Failed to open file: {}", filename);
-        exit(EXIT_FAILURE);
-    }
+LocDimData read_loc_dim_from_bin(std::string const&            path,
+                                 std::string const&            in_file,
+                                 std::vector<std::vector<int>> counts,
+                                 int                           max_time,
+                                 int                           min_time,
+                                 int                           min_level,
+                                 int                           max_level) {
 
-    std::vector<std::vector<std::vector<std::vector<int>>>> out;
+    std::ifstream file = open_read(path, in_file);
+
+    LocDimData out;
 
     for (int t = 0; t < max_time - min_time + 1; t++) {
         std::vector<std::vector<std::vector<int>>> out_t;
@@ -264,8 +282,7 @@ read_loc_dim_from_bin(std::string const&            path,
                 std::vector<int> current_coords;
 
                 for (int coord = 0; coord < 3; coord++) {
-                    float value;
-                    file.read(reinterpret_cast<char*>(&value), sizeof(float));
+                    float value = read_float(file);
                     current_coords.push_back(value);
                 }
 
@@ -291,22 +308,14 @@ void write_box_counts(std::vector<std::vector<int>> counts,
                       int                           min_level,
                       int                           max_level) {
 
-    // TODO: This is a common idiom in your code (determining a path + opening
-    // file + checking if valid). Might be good to make this a function somehow.
-    std::string   filename = path + out_file;
-    std::ofstream file(filename, std::ios::binary);
-
-    if (!file.is_open()) {
-        spdlog::error("Failed to open file: {}", filename);
-        exit(EXIT_FAILURE);
-    }
+    std::ofstream file = open_write(path, out_file);
 
     for (int t = 0; t < max_time - min_time + 1; t++) {
 
         for (int lev = min_level; lev <= max_level; lev++) {
 
             int value = counts[t][lev];
-            file.write(reinterpret_cast<const char*>(&value), sizeof(float));
+            write_float(file, value);
         }
     }
 
@@ -321,13 +330,7 @@ std::vector<std::vector<int>> read_box_counts(std::string path,
                                               int         min_level,
                                               int         max_level) {
 
-    std::string   filename = path + in_file;
-    std::ifstream file(filename, std::ios::binary);
-
-    if (!file.is_open()) {
-        spdlog::error("Failed to open file: {}", filename);
-        exit(EXIT_FAILURE);
-    }
+    std::ifstream file = open_read(path, in_file);
 
     std::vector<std::vector<int>> read_counts;
 
@@ -335,8 +338,7 @@ std::vector<std::vector<int>> read_box_counts(std::string path,
         std::vector<int> read_counts_t;
 
         for (int lev = min_level; lev <= max_level; lev++) {
-            int value;
-            file.read(reinterpret_cast<char*>(&value), sizeof(float));
+            int value = static_cast<int>(read_float(file));
             read_counts_t.push_back(value);
         }
 
@@ -402,29 +404,21 @@ void write_box_with_loc_dim(Volume3D           volume,
                             std::vector<float> location,
                             std::vector<float> dimension) {
 
-    std::string   filename = path + out_file;
-    std::ofstream file(filename, std::ios::binary);
-
-    if (!file) {
-        spdlog::error("Failed to open file for writing: {}", filename);
-        return;
-    }
+    std::ofstream file = open_write(path, out_file);
 
     // Write location
     for (float coord : location) {
-        // TODO: This write is a common idiom in your code. Maybe a function
-        // like write_float(stream, value);
-        file.write(reinterpret_cast<const char*>(&coord), sizeof(float));
+        write_float(file, coord);
     }
 
     // Write dimension
     for (float dim : dimension) {
-        file.write(reinterpret_cast<const char*>(&dim), sizeof(float));
+        write_float(file, dim);
     }
 
     // Write volume data
     volume.iterate([&](float value, size_t, size_t, size_t) {
-        file.write(reinterpret_cast<const char*>(&value), sizeof(float));
+        write_float(file, value);
     });
     // TODO: Check and see if this can be used anywhere else
 
@@ -458,35 +452,25 @@ std::vector<std::pair<int, int16_t>> rle_encode(std::vector<bool>    mask,
 
 
 std::string serialize_compressed_wavelet(CompressedWavelet compressed) {
+    std::string buffer;
 
-    // TODO: You are using a string stream here; not sure why, as all the data
-    // is binary.
-    std::ostringstream oss(std::ios::binary);
-
-    // Shape
     for (int dim : compressed.shape) {
-        oss.write(reinterpret_cast<const char*>(&dim), sizeof(int));
+        buffer.append(reinterpret_cast<const char*>(&dim), sizeof(int));
     }
 
-    // Coeff shape
     for (int dim : compressed.coeff_shape) {
-        oss.write(reinterpret_cast<const char*>(&dim), sizeof(int));
+        buffer.append(reinterpret_cast<const char*>(&dim), sizeof(int));
     }
 
-    // RLE data
     int rle_size = static_cast<int>(compressed.rle_encoded.size());
-    oss.write(reinterpret_cast<const char*>(&rle_size), sizeof(int));
+    buffer.append(reinterpret_cast<const char*>(&rle_size), sizeof(int));
+
     for (const auto& [run, val] : compressed.rle_encoded) {
-        oss.write(reinterpret_cast<const char*>(&run), sizeof(int));
-        oss.write(reinterpret_cast<const char*>(&val), sizeof(int16_t));
+        buffer.append(reinterpret_cast<const char*>(&run), sizeof(int));
+        buffer.append(reinterpret_cast<const char*>(&val), sizeof(int16_t));
     }
 
-    // Wavelet name
-    // int str_len = static_cast<int>(compressed.wavelet.size());
-    // oss.write(reinterpret_cast<const char*>(&str_len), sizeof(int));
-    // oss.write(compressed.wavelet.data(), str_len);
-
-    return oss.str();
+    return buffer;
 }
 
 
@@ -620,9 +604,7 @@ CompressedWavelet wavelet_compress_rle(Box3D const& box,
                                static_cast<int>(box.height()),
                                static_cast<int>(box.depth()) };
     compressed.coeff_shape = { static_cast<int>(flat_coeffs.size()) };
-    // compressed.coeff_slices = {}; // Not implemented
     compressed.rle_encoded = rle_encoded;
-    // compressed.wavelet = wavelet;
 
     // Serialize and compress using lzma
     std::string filename = compressed_dir + "compressed-wavelet-" +
@@ -691,51 +673,54 @@ std::vector<float> rle_decode(std::vector<std::pair<int, int16_t>> rle_encoded,
 
 
 CompressedWavelet deserialize_compressed_wavelet(const std::string& data) {
-    CompressedWavelet  compressed;
-    std::istringstream iss(data, std::ios::binary);
+    CompressedWavelet compressed;
+    const char* ptr = data.data(); // Pointer to start of binary data
 
-    // Shape (expecting 3 dimensions)
+    auto read = [&](auto& out) {
+        std::memcpy(&out, ptr, sizeof(out));
+        ptr += sizeof(out);
+    };
+
+    // Shape (3 dimensions)
     for (int i = 0; i < 3; ++i) {
         int dim;
-        iss.read(reinterpret_cast<char*>(&dim), sizeof(int));
+        std::memcpy(&dim, ptr, sizeof(dim));
+        ptr += sizeof(dim);
         compressed.shape.push_back(dim);
     }
 
-    // Coeff shape (expecting 1 dimension)
+    // Coeff shape (1 dimension)
     for (int i = 0; i < 1; ++i) {
         int dim;
-        iss.read(reinterpret_cast<char*>(&dim), sizeof(int));
+        std::memcpy(&dim, ptr, sizeof(dim));
+        ptr += sizeof(dim);
         compressed.coeff_shape.push_back(dim);
     }
 
-    // RLE data
+    // RLE size
     int rle_size;
-    iss.read(reinterpret_cast<char*>(&rle_size), sizeof(int));
+    std::memcpy(&rle_size, ptr, sizeof(rle_size));
+    ptr += sizeof(rle_size);
     compressed.rle_encoded.resize(rle_size);
 
+    // RLE data
     for (int i = 0; i < rle_size; ++i) {
         int     run;
         int16_t val;
-        iss.read(reinterpret_cast<char*>(&run), sizeof(int));
-        iss.read(reinterpret_cast<char*>(&val), sizeof(int16_t));
+        std::memcpy(&run, ptr, sizeof(run));
+        ptr += sizeof(run);
+        std::memcpy(&val, ptr, sizeof(val));
+        ptr += sizeof(val);
         compressed.rle_encoded[i] = { run, val };
     }
-
-    // Wavelet name
-    // int str_len;
-    // iss.read(reinterpret_cast<char*>(&str_len), sizeof(int));
-    // string wavelet(str_len, '\0');
-    // iss.read(&wavelet[0], str_len);
-    // compressed.wavelet = wavelet;
 
     return compressed;
 }
 
 
+
 Box3D inverse_wavelet_decompose(std::vector<float> flat, int x, int y, int z) {
     // Step 1: reshape the flat array into a 3D volume
-    // Grid3D<float> box(x, y, z);
-    // Box3D temp = box;
     Box3D temp(x, y, z);
 
     int idx = 0;
@@ -809,67 +794,6 @@ Box3D inverse_wavelet_decompose(std::vector<float> flat, int x, int y, int z) {
 
     return temp;
 }
-
-
-// CompressedWavelet read_compressed_wavelet(const string& filename) {
-//     CompressedWavelet compressed;
-
-//     // Open file and read into buffer
-//     ifstream file(filename, ios::binary | ios::ate);
-//     if (!file.is_open()) {
-//         cerr << "Failed to open file: " << filename << endl;
-//         return compressed;
-//     }
-
-//     streamsize size = file.tellg();
-//     file.seekg(0, ios::beg);
-
-//     vector<uint8_t> compressed_data(size);
-//     if (!file.read(reinterpret_cast<char*>(compressed_data.data()), size)) {
-//         cerr << "Failed to read compressed data from file: " << filename <<
-//         endl; return compressed;
-//     }
-
-//     file.close();
-
-//     // Initialize LZMA stream
-//     lzma_stream strm = LZMA_STREAM_INIT;
-//     if (lzma_stream_decoder(&strm, UINT64_MAX, LZMA_CONCATENATED) != LZMA_OK)
-//     {
-//         cerr << "Failed to initialize LZMA decoder." << endl;
-//         return compressed;
-//     }
-
-//     strm.next_in = compressed_data.data();
-//     strm.avail_in = compressed_data.size();
-
-//     // Set a max expected decompressed size to prevent infinite buffer growth
-//     (adjust as needed) const size_t max_decompressed_size = 50 * 1024 * 1024;
-//     // 50 MB vector<uint8_t> decompressed_data(max_decompressed_size);
-
-//     strm.next_out = decompressed_data.data();
-//     strm.avail_out = decompressed_data.size();
-
-//     lzma_ret ret = lzma_code(&strm, LZMA_FINISH);
-//     if (ret != LZMA_STREAM_END) {
-//         cerr << "LZMA decompression failed (file: " << filename << "), code:
-//         " << ret << endl; lzma_end(&strm); return compressed;
-//     }
-
-//     size_t decompressed_size = decompressed_data.size() - strm.avail_out;
-//     lzma_end(&strm);
-
-//     // Deserialize
-//     string serialized_data(reinterpret_cast<char*>(decompressed_data.data()),
-//     decompressed_size); try {
-//         compressed = deserialize_compressed_wavelet(serialized_data);
-//     } catch (const std::exception& e) {
-//         cerr << "Deserialization failed for file: " << filename << " with
-//         error: " << e.what() << endl;
-//     }
-
-//     return compressed;
-// }
 
 
 CompressedWavelet read_compressed_wavelet(const std::string& filename) {
@@ -977,6 +901,8 @@ int main(int argc, char* argv[]) {
     auto& locations  = processed_data.locations;
     auto& dimensions = processed_data.dimensions;
     auto& box_counts = processed_data.box_counts;
+    auto& min_value  = processed_data.min_value;
+    auto& max_value  = processed_data.max_value;
 
     write_loc_dim_to_bin(locations,
                          compressed_dir,
@@ -1031,8 +957,7 @@ int main(int argc, char* argv[]) {
                                        max_time,
                                        min_level,
                                        max_level);
-    // vector<vector<vector<vector<int>>>> dims_read =
-    // read_loc_dim_from_bin(compressed_dir, "dimensions.raw", counts_read);
+
     std::vector<std::vector<std::vector<Box3D>>> regen_boxes;
 
     for (int t = 0; t <= max_time - min_time; t++) {
@@ -1046,30 +971,15 @@ int main(int argc, char* argv[]) {
                                         std::to_string(lev) + "-" +
                                         std::to_string(box_idx) + ".xz";
 
-                // auto startRead = chrono::high_resolution_clock::now();
                 CompressedWavelet read_compressed =
                     read_compressed_wavelet(file_path);
-                // auto endRead = chrono::high_resolution_clock::now();
-                // auto durationRead = chrono::duration<double>(endRead -
-                // startRead).count(); cout << "Read: " <<
-                // to_string(durationRead) << endl;
 
-                // auto startDecode = chrono::high_resolution_clock::now();
                 auto read_flat = rle_decode(read_compressed.rle_encoded,
                                             read_compressed.coeff_shape[0]);
-                // auto endDecode = chrono::high_resolution_clock::now();
-                // auto durationDecode = chrono::duration<double>(endDecode -
-                // startDecode).count(); cout << "Decode: " <<
-                // to_string(durationDecode) << endl;
 
-                // auto startWavelet = chrono::high_resolution_clock::now();
                 auto const& dims      = read_compressed.shape;
                 Box3D       regen_box = inverse_wavelet_decompose(
                     read_flat, dims[0], dims[1], dims[2]);
-                // auto endWavelet = chrono::high_resolution_clock::now();
-                // auto durationWavelet = chrono::duration<double>(endWavelet -
-                // startWavelet).count(); cout << "Wavelet: " <<
-                // to_string(durationWavelet) << endl;
 
                 regen_boxes_l.push_back(std::move(regen_box));
             }
@@ -1085,4 +995,9 @@ int main(int argc, char* argv[]) {
 
     double rmse = calc_avg_rmse(boxes, regen_boxes);
     spdlog::info("RMSE = {}", rmse);
+
+    double range = max_value - min_value;
+    double loss = rmse / range;
+    spdlog::info("Adjusted loss = {}", loss);
 }
+

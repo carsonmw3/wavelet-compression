@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdexcept>
 #include <vector>
 
 template <class T>
@@ -37,10 +38,10 @@ public:
     // Explicit copy
     Grid3D clone() const {
         Grid3D ret;
-        ret.m_width  = ret.m_width;
-        ret.m_height = ret.m_height;
-        ret.m_depth  = ret.m_depth;
-        ret.m_data   = ret.m_data;
+        ret.m_width  = m_width;
+        ret.m_height = m_height;
+        ret.m_depth  = m_depth;
+        ret.m_data   = m_data;
         return ret;
     }
 

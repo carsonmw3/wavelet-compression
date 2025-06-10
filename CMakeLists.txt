@@ -22,7 +22,7 @@ install(TARGETS wavelet-compression
 find_package(LibLZMA REQUIRED)
 target_link_libraries(wavelet-compression PRIVATE LibLZMA::LibLZMA)
 
-# Link filesystem library explicitly if needed (GCC <= 8)
-if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 8)
+# Link filesystem library explicitly if needed (GCC <= 9)
+if (CMAKE_COMPILER_IS_GNUCXX)
     target_link_libraries(wavelet-compression PRIVATE stdc++fs)
 endif()
