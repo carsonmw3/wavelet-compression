@@ -10,7 +10,18 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(wavelet-compression main.cpp
-    grid.h)
+    grid.h
+    preprocess.cpp
+    preprocess.h
+    readandwrite.cpp
+    readandwrite.h
+    box-structs.h
+    compressor.cpp
+    compressor.h
+    decompressor.cpp
+    decompressor.h
+    calc-loss.cpp
+    calc-loss.h)
 
 include(GNUInstallDirs)
 install(TARGETS wavelet-compression
@@ -22,7 +33,10 @@ install(TARGETS wavelet-compression
 find_package(LibLZMA REQUIRED)
 target_link_libraries(wavelet-compression PRIVATE LibLZMA::LibLZMA)
 
-# Link filesystem library explicitly if needed (GCC <= 9)
+find_package(AMReX REQUIRED)
+target_link_libraries(wavelet-compression PRIVATE AMReX::amrex_3d)
+
+# Link filesystem library explicitly if needed (GCC <= 8)
 if (CMAKE_COMPILER_IS_GNUCXX)
     target_link_libraries(wavelet-compression PRIVATE stdc++fs)
 endif()
