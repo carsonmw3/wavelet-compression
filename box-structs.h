@@ -9,6 +9,7 @@ using Volume3D   = Grid3D<float>;
 using Location   = std::vector<int>;
 using Dimensions = std::vector<int>;
 using LocDimData = std::vector<std::vector<std::vector<std::vector<int>>>>;
+// TODO: ^ could we use a Grid< Vec<Grid<int>> > or similar here?
 
 struct AllData {
         std::vector<std::vector<std::vector<Box3D>>> boxes;

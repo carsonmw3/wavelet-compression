@@ -62,7 +62,7 @@ std::vector<double> wavelet_decompose(Box3D const& box) {
     Box3D               temp = box.clone();
     std::vector<double> flat;
 
-           // Decompose along Z
+    // Decompose along Z
     for (int i = 0; i < x; ++i) {
         for (int j = 0; j < y; ++j) {
             std::vector<double> row(z);
@@ -87,7 +87,7 @@ std::vector<double> wavelet_decompose(Box3D const& box) {
         }
     }
 
-           // Repeat for Y
+    // Repeat for Y
     for (int i = 0; i < x; ++i) {
         for (int k = 0; k < z; ++k) {
             std::vector<double> col(y);
@@ -112,7 +112,7 @@ std::vector<double> wavelet_decompose(Box3D const& box) {
         }
     }
 
-           // Repeat for X
+    // Repeat for X
     for (int j = 0; j < y; ++j) {
         for (int k = 0; k < z; ++k) {
             std::vector<double> depth(x);
@@ -137,7 +137,7 @@ std::vector<double> wavelet_decompose(Box3D const& box) {
         }
     }
 
-           // Flatten result
+    // Flatten result
     for (int i = 0; i < x; ++i)
         for (int j = 0; j < y; ++j)
             for (int k = 0; k < z; ++k)
@@ -148,16 +148,16 @@ std::vector<double> wavelet_decompose(Box3D const& box) {
 
 
 CompressedWavelet compress(Box3D const& box,
-                                       double       keep,
-                                       int          time,
-                                       int          level,
-                                       int          box_index,
-                                       std::string  compressed_dir) {
+                           double       keep,
+                           int          time,
+                           int          level,
+                           int          box_index,
+                           std::string  compressed_dir) {
 
     // Wavelet decomposition
     std::vector<double> flat_coeffs = wavelet_decompose(box);
 
-           // Thresholding
+    // Thresholding
     double max_val =
         *std::max_element(flat_coeffs.begin(),
                           flat_coeffs.end(),
@@ -174,10 +174,10 @@ CompressedWavelet compress(Box3D const& box,
         }
     }
 
-           // RLE encode
+    // RLE encode
     std::vector<std::pair<int, int16_t>> rle_encoded = rle_encode(mask, values);
 
-           // Create compressed structure
+    // Create compressed structure
     CompressedWavelet compressed;
     compressed.shape       = { static_cast<int>(box.width()),
                                static_cast<int>(box.height()),
@@ -185,7 +185,7 @@ CompressedWavelet compress(Box3D const& box,
     compressed.coeff_shape = { static_cast<int>(flat_coeffs.size()) };
     compressed.rle_encoded = rle_encoded;
 
-           // Serialize and compress using lzma
+    // Serialize and compress using lzma
     std::string filename = compressed_dir + "compressed-wavelet-" +
                            std::to_string(time) + "-" + std::to_string(level) +
                            "-" + std::to_string(box_index) + ".xz";
@@ -202,17 +202,17 @@ CompressedWavelet compress(Box3D const& box,
             exit(EXIT_FAILURE);
         }
 
-               // Input
+        // Input
         strm.next_in  = reinterpret_cast<const uint8_t*>(serialized.data());
         strm.avail_in = serialized.size();
 
-               // Output buffer (reserve slightly more than input)
+        // Output buffer (reserve slightly more than input)
         std::vector<uint8_t> outbuf(serialized.size() * 1.1 +
                                     128); // +128 safety
         strm.next_out  = outbuf.data();
         strm.avail_out = outbuf.size();
 
-               // Compress
+        // Compress
         ret = lzma_code(&strm, LZMA_FINISH);
         if (ret != LZMA_STREAM_END) {
             // This should be fatal
@@ -222,7 +222,7 @@ CompressedWavelet compress(Box3D const& box,
 
         lzma_end(&strm);
 
-               // Write compressed data
+        // Write compressed data
         file.write(reinterpret_cast<const char*>(outbuf.data()),
                    outbuf.size() - strm.avail_out);
         file.close();
@@ -230,4 +230,3 @@ CompressedWavelet compress(Box3D const& box,
 
     return compressed;
 }
-

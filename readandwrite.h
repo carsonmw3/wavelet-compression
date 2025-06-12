@@ -3,6 +3,9 @@
 #include "box-structs.h"
 
 
+// TODO: If you are repeating parameters or code more than two-ish times,
+// that typically means you'll want to extract them into a struct
+
 void write_loc_dim_to_bin(LocDimData  data,
                           std::string path,
                           std::string out_file,

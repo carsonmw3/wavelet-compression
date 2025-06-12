@@ -1,22 +1,23 @@
 #include "readandwrite.h"
 
-#include <spdlog/spdlog.h>
 #include <fstream>
+#include <spdlog/spdlog.h>
 #include <string>
 
-void write_float(std::ofstream& stream, float val) {
+// TODO: Note the addition of 'static'. This is a weird c++ thing; if you
+// only use a function inside a single .cpp, it is recommended to tell the
+// compiler that.
+static void write_float(std::ofstream& stream, float val) {
     stream.write(reinterpret_cast<const char*>(&val), sizeof(float));
 }
 
-
-float read_float(std::ifstream& stream) {
+static float read_float(std::ifstream& stream) {
     float value;
     stream.read(reinterpret_cast<char*>(&value), sizeof(float));
     return value;
 }
 
-
-std::ofstream open_write(std::string path, std::string outfile) {
+static std::ofstream open_write(std::string path, std::string outfile) {
     std::string   filename = path + outfile;
     std::ofstream file(filename, std::ios::binary);
 
@@ -28,9 +29,7 @@ std::ofstream open_write(std::string path, std::string outfile) {
     return file;
 }
 
-
-
-std::ifstream open_read(std::string path, std::string infile) {
+static std::ifstream open_read(std::string path, std::string infile) {
     std::string   filename = path + infile;
     std::ifstream file(filename, std::ios::binary);
 
@@ -41,7 +40,6 @@ std::ifstream open_read(std::string path, std::string infile) {
 
     return file;
 }
-
 
 
 void write_loc_dim_to_bin(LocDimData  data,
@@ -71,7 +69,6 @@ void write_loc_dim_to_bin(LocDimData  data,
 
     file.close();
 }
-
 
 
 LocDimData read_loc_dim_from_bin(std::string const&            path,
@@ -173,22 +170,20 @@ void write_box_with_loc_dim(Volume3D           volume,
 
     std::ofstream file = open_write(path, out_file);
 
-           // Write location
+    // Write location
     for (float coord : location) {
         write_float(file, coord);
     }
 
-           // Write dimension
+    // Write dimension
     for (float dim : dimension) {
         write_float(file, dim);
     }
 
-           // Write volume data
-    volume.iterate([&](float value, size_t, size_t, size_t) {
-        write_float(file, value);
-    });
+    // Write volume data
+    volume.iterate(
+        [&](float value, size_t, size_t, size_t) { write_float(file, value); });
     // TODO: Check and see if this can be used anywhere else
 
     file.close();
 }
-
