@@ -4,6 +4,7 @@
 #include "compressor.h"
 #include "decompressor.h"
 #include "calc-loss.h"
+#include "writeplotfile.h"
 
 #include <spdlog/spdlog.h>
 #include <chrono>
@@ -19,9 +20,9 @@ int main(int argc, char* argv[]) {
     amrex::Initialize(argc, argv);
     spdlog::set_level(spdlog::level::debug);
 
-    if (argc != 8) {
+    if (argc != 11) {
         spdlog::info(
-            "Usage: {} mintime maxtime minlevel maxlevel component keep compressedDir",
+            "Usage: {} mintime maxtime minlevel maxlevel component keep xDim yDim zDim compressedDir",
             argv[0]);
         return EXIT_FAILURE;
     }
@@ -32,6 +33,9 @@ int main(int argc, char* argv[]) {
     int              max_level;
     int              component;
     float            keep;
+    int              xDim;
+    int              yDim;
+    int              zDim;
     std::string      compressed_dir;
     amrex::ParmParse pp;
 
@@ -41,6 +45,9 @@ int main(int argc, char* argv[]) {
     pp.query("maxlevel", max_level);
     pp.query("component", component);
     pp.query("keep", keep);
+    pp.query("x", xDim);
+    pp.query("y", yDim);
+    pp.query("z", zDim);
     pp.query("compressedDir", compressed_dir);
 
     std::vector<std::string> files;
@@ -60,6 +67,9 @@ int main(int argc, char* argv[]) {
     spdlog::info("Processing data...");
     auto start = std::chrono::high_resolution_clock::now();
 
+    int num_times = max_time - min_time + 1;
+    int num_levels = max_level - min_level + 1;
+
     AllData data = preprocess_data(files,
                                    components,
                                    levels);
@@ -74,24 +84,18 @@ int main(int argc, char* argv[]) {
     write_loc_dim_to_bin(locations,
                          compressed_dir,
                          "locations.raw",
-                         min_time,
-                         max_time,
-                         min_level,
-                         max_level);
+                         num_times,
+                         num_levels);
     write_loc_dim_to_bin(dimensions,
                          compressed_dir,
                          "dimensions.raw",
-                         min_time,
-                         max_time,
-                         min_level,
-                         max_level);
+                         num_times,
+                         num_levels);
     write_box_counts(box_counts,
                      compressed_dir,
                      "boxcounts.raw",
-                     min_time,
-                     max_time,
-                     min_level,
-                     max_level);
+                     num_times,
+                     num_levels);
 
     auto end      = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration<double>(end - start).count();
@@ -121,10 +125,8 @@ int main(int argc, char* argv[]) {
     auto start2      = std::chrono::high_resolution_clock::now();
     auto counts_read = read_box_counts(compressed_dir,
                                        "boxcounts.raw",
-                                       min_time,
-                                       max_time,
-                                       min_level,
-                                       max_level);
+                                       num_times,
+                                       num_levels);
 
     std::vector<std::vector<std::vector<Box3D>>> regen_boxes;
 
@@ -167,6 +169,30 @@ int main(int argc, char* argv[]) {
 
     double loss = calc_adj_loss(rmse, max_value-min_value);
     spdlog::info("Adjusted loss = {}", loss);
+
+    LocDimData locs_read = read_loc_dim_from_bin(compressed_dir,
+                                                 "locations.raw",
+                                                 counts_read,
+                                                 num_times,
+                                                 num_levels);
+
+    LocDimData dims_read = read_loc_dim_from_bin(compressed_dir,
+                                                 "dimensions.raw",
+                                                 counts_read,
+                                                 num_times,
+                                                 num_levels);
+
+    write_plotfiles(regen_boxes,
+                    locs_read,
+                    dims_read,
+                    num_times,
+                    num_levels,
+                    xDim,
+                    yDim,
+                    zDim,
+                    "../../regenerated-plotfiles/");
+
+    spdlog::info("Sucessfully wrote plotfiles.");
 
     amrex::Finalize();
 }

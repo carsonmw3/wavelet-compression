@@ -1,8 +1,8 @@
 #include "readandwrite.h"
 
-#include <fstream>
 #include <spdlog/spdlog.h>
-#include <string>
+#include <fstream>
+
 
 // TODO: Note the addition of 'static'. This is a weird c++ thing; if you
 // only use a function inside a single .cpp, it is recommended to tell the
@@ -11,11 +11,13 @@ static void write_float(std::ofstream& stream, float val) {
     stream.write(reinterpret_cast<const char*>(&val), sizeof(float));
 }
 
+
 static float read_float(std::ifstream& stream) {
     float value;
     stream.read(reinterpret_cast<char*>(&value), sizeof(float));
     return value;
 }
+
 
 static std::ofstream open_write(std::string path, std::string outfile) {
     std::string   filename = path + outfile;
@@ -28,6 +30,8 @@ static std::ofstream open_write(std::string path, std::string outfile) {
 
     return file;
 }
+
+
 
 static std::ifstream open_read(std::string path, std::string infile) {
     std::string   filename = path + infile;
@@ -42,19 +46,18 @@ static std::ifstream open_read(std::string path, std::string infile) {
 }
 
 
+
 void write_loc_dim_to_bin(LocDimData  data,
                           std::string path,
                           std::string out_file,
-                          int         max_time,
-                          int         min_time,
-                          int         min_level,
-                          int         max_level) {
+                          int         num_times,
+                          int         num_levels) {
 
     std::ofstream file = open_write(path, out_file);
 
-    for (int t = 0; t < max_time - min_time + 1; t++) {
+    for (int t = 0; t < num_times; t++) {
 
-        for (int lev = min_level; lev <= max_level; lev++) {
+        for (int lev = 0; lev < num_levels; lev++) {
 
             for (int box_idx = 0; box_idx < data[t][lev].size(); box_idx++) {
 
@@ -71,23 +74,28 @@ void write_loc_dim_to_bin(LocDimData  data,
 }
 
 
+
 LocDimData read_loc_dim_from_bin(std::string const&            path,
                                  std::string const&            in_file,
                                  std::vector<std::vector<int>> counts,
-                                 int                           max_time,
-                                 int                           min_time,
-                                 int                           min_level,
-                                 int                           max_level) {
+                                 int                           num_times,
+                                 int                           num_levels) {
 
     std::ifstream file = open_read(path, in_file);
 
     LocDimData out;
 
-    for (int t = 0; t < max_time - min_time + 1; t++) {
+    for (int t = 0; t < num_times; t++) {
         std::vector<std::vector<std::vector<int>>> out_t;
 
-        for (int lev = min_level; lev <= max_level; lev++) {
+        for (int lev = 0; lev < num_levels; lev++) {
             std::vector<std::vector<int>> out_l;
+            if (t >= counts.size()) {
+                throw std::runtime_error("Time index out of bounds in counts vector");
+            }
+            if (lev >= counts[t].size()) {
+                throw std::runtime_error("Level index out of bounds in counts vector");
+            }
             int                           curr_num_boxes = counts[t][lev];
 
             for (int box_idx = 0; box_idx < curr_num_boxes; box_idx++) {
@@ -115,18 +123,16 @@ LocDimData read_loc_dim_from_bin(std::string const&            path,
 void write_box_counts(std::vector<std::vector<int>> counts,
                       std::string const&            path,
                       std::string const&            out_file,
-                      int                           max_time,
-                      int                           min_time,
-                      int                           min_level,
-                      int                           max_level) {
+                      int                           num_times,
+                      int                           num_levels) {
 
     std::ofstream file = open_write(path, out_file);
 
-    for (int t = 0; t < max_time - min_time + 1; t++) {
+    for (int t = 0; t < num_times; t++) {
 
-        for (int lev = min_level; lev <= max_level; lev++) {
+        for (int lev = 0; lev < num_levels; lev++) {
 
-            int value = counts[t][lev];
+            int value = counts.at(t).at(lev);
             write_float(file, value);
         }
     }
@@ -137,19 +143,17 @@ void write_box_counts(std::vector<std::vector<int>> counts,
 
 std::vector<std::vector<int>> read_box_counts(std::string path,
                                               std::string in_file,
-                                              int         max_time,
-                                              int         min_time,
-                                              int         min_level,
-                                              int         max_level) {
+                                              int         num_times,
+                                              int         num_levels) {
 
     std::ifstream file = open_read(path, in_file);
 
     std::vector<std::vector<int>> read_counts;
 
-    for (int t = 0; t < max_time - min_time + 1; t++) {
+    for (int t = 0; t < num_times; t++) {
         std::vector<int> read_counts_t;
 
-        for (int lev = min_level; lev <= max_level; lev++) {
+        for (int lev = 0; lev < num_levels; lev++) {
             int value = static_cast<int>(read_float(file));
             read_counts_t.push_back(value);
         }
@@ -180,10 +184,13 @@ void write_box_with_loc_dim(Volume3D           volume,
         write_float(file, dim);
     }
 
+
     // Write volume data
-    volume.iterate(
-        [&](float value, size_t, size_t, size_t) { write_float(file, value); });
+    volume.iterate([&](float value, size_t, size_t, size_t) {
+        write_float(file, value);
+    });
     // TODO: Check and see if this can be used anywhere else
 
     file.close();
 }
+

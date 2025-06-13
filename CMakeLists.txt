@@ -21,7 +21,9 @@ add_executable(wavelet-compression main.cpp
     decompressor.cpp
     decompressor.h
     calc-loss.cpp
-    calc-loss.h)
+    calc-loss.h
+    writeplotfile.cpp
+    writeplotfile.h)
 
 include(GNUInstallDirs)
 install(TARGETS wavelet-compression
