@@ -6,7 +6,7 @@
 #include <fstream>
 #include <string>
 
-std::vector<std::pair<int, int16_t>> rle_encode(std::vector<bool>    mask,
+static std::vector<std::pair<int, int16_t>> rle_encode(std::vector<bool>    mask,
                                                 std::vector<int16_t> values) {
 
     std::vector<std::pair<int, int16_t>> rle;
@@ -31,7 +31,7 @@ std::vector<std::pair<int, int16_t>> rle_encode(std::vector<bool>    mask,
 }
 
 
-std::string serialize_compressed_wavelet(CompressedWavelet compressed) {
+static std::string serialize_compressed_wavelet(CompressedWavelet compressed) {
     std::string buffer;
 
     for (int dim : compressed.shape) {
@@ -54,7 +54,7 @@ std::string serialize_compressed_wavelet(CompressedWavelet compressed) {
 }
 
 
-std::vector<double> wavelet_decompose(Box3D const& box) {
+static std::vector<double> wavelet_decompose(Box3D const& box) {
     int x = box.width();
     int y = box.height();
     int z = box.depth();

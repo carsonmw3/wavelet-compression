@@ -26,7 +26,7 @@ std::vector<float> rle_decode(std::vector<std::pair<int, int16_t>> rle_encoded,
 }
 
 
-CompressedWavelet deserialize_compressed_wavelet(const std::string& data) {
+static CompressedWavelet deserialize_compressed_wavelet(const std::string& data) {
     CompressedWavelet compressed;
     const char*       ptr = data.data(); // Pointer to start of binary data
 

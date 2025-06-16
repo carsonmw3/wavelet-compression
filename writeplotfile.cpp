@@ -16,7 +16,7 @@
 #include <AMReX_Vector.H>
 
 
-amrex::MultiFab initializeMF (std::vector<Location>   locations,
+static amrex::MultiFab initializeMF (std::vector<Location>   locations,
                               std::vector<Dimensions> dimensions) {
 
     amrex::BoxList boxes;
@@ -54,7 +54,7 @@ amrex::MultiFab initializeMF (std::vector<Location>   locations,
 }
 
 
-void populateMF (amrex::MultiFab&    multi,
+static void populateMF (amrex::MultiFab&    multi,
                  std::vector<Box3D>& data) {
 
     int box_idx = 0;
