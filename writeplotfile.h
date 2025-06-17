@@ -2,6 +2,7 @@
 
 #include "box-structs.h"
 
+// TODO: is this param list not the same as AllData in box-structs?
 void write_plotfiles(std::vector<std::vector<std::vector<Box3D>>> &data,
                      LocDimData                                   locations,
                      LocDimData                                   dimensions,

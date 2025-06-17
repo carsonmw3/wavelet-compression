@@ -25,6 +25,8 @@ add_executable(wavelet-compression main.cpp
     writeplotfile.cpp
     writeplotfile.h)
 
+add_executable(wavelet-compression-tests test.cpp)
+
 include(GNUInstallDirs)
 install(TARGETS wavelet-compression
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -37,6 +39,13 @@ target_link_libraries(wavelet-compression PRIVATE LibLZMA::LibLZMA)
 
 find_package(AMReX REQUIRED)
 target_link_libraries(wavelet-compression PRIVATE AMReX::amrex_3d)
+
+find_package(doctest REQUIRED)
+target_link_libraries(wavelet-compression-tests PRIVATE
+    AMReX::amrex_3d
+    LibLZMA::LibLZMA
+    doctest::doctest
+)
 
 # Link filesystem library explicitly if needed (GCC <= 8)
 if (CMAKE_COMPILER_IS_GNUCXX)

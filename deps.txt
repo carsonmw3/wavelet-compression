@@ -1,3 +1,9 @@
+- doctest
+type : cmake
+src  : https://github.com/doctest/doctest/archive/refs/tags/v2.4.12.zip
+options :
+    DOCTEST_WITH_TESTS OFF
+
 - amrex
 type : cmake
 src : https://github.com/AMReX-Codes/amrex/releases/download/23.08/amrex-23.08.tar.gz
