@@ -14,7 +14,7 @@
 // the first three are the location of the box, the next three are the dimensions of
 // the box, and the rest is the data itself in order x, y, z.
 static LevelData collectDataNewFormat (std::string lev_file,
-                                int         component) {
+                                       int         component) {
 
     LevelData ret;
 
@@ -92,17 +92,24 @@ static LevelData collectDataNewFormat (std::string lev_file,
 
 // TODO: add multi-component support
 AllData preprocess_data(std::vector<std::string> files,
-                           std::vector<int>      components,
-                           std::vector<int>      levels) {
+                        std::vector<int>      components,
+                        std::vector<int>      levels) {
 
     AllData ret;
 
-    auto& boxes      = ret.boxes;
-    auto& locations  = ret.locations;
-    auto& dimensions = ret.dimensions;
-    auto& box_counts = ret.box_counts;
-    auto& minval     = ret.min_value;
-    auto& maxval     = ret.max_value;
+    auto& boxes        = ret.boxes;
+    auto& locations    = ret.locations;
+    auto& dimensions   = ret.dimensions;
+    auto& box_counts   = ret.box_counts;
+    auto& minval       = ret.min_value;
+    auto& maxval       = ret.max_value;
+    auto& geomcellinfo = ret.geomcellinfo;
+    auto& refratios    = ret.ref_ratios;
+    auto& true_times   = ret.true_times;
+    auto& level_steps  = ret.level_steps;
+    auto& xDim         = ret.xDim;
+    auto& yDim         = ret.yDim;
+    auto& zDim         = ret.zDim;
 
     minval = std::numeric_limits<float>::max();
     maxval = std::numeric_limits<float>::min();
@@ -129,8 +136,10 @@ AllData preprocess_data(std::vector<std::string> files,
         x >> nComp;
 
         // read in variable names from header
+        std::vector<std::string> comp_names;
         for (int n=0; n<nComp; n++) {
             x >> str;
+            comp_names.push_back(str);
         }
 
         // read in dimensionality from header
@@ -141,6 +150,83 @@ AllData preprocess_data(std::vector<std::string> files,
             spdlog::error("Error: you are using a {}D build to open a {}D plotfile",
                           AMREX_SPACEDIM, dim);
         }
+
+        std::getline(x, str); // Consume remainder of the line after reading 'dim'
+
+        // read in true time
+        long double true_time;
+        x >> true_time;
+        true_times.push_back(true_time);
+
+        std::getline(x, str); // rest of line
+        std::getline(x, str); // skip no. of levels
+
+        // read in physical domain info
+        std::vector<double> geomcell(6);
+        std::getline(x, str);
+        std::istringstream iss(str);
+        double val1, val2, val3;
+        iss >> val1 >> val2 >> val3;
+        geomcell[0] = val1;
+        geomcell[1] = val2;
+        geomcell[2] = val3;
+
+        std::getline(x, str);
+        std::istringstream iss1(str);
+        double val4, val5, val6;
+        iss1 >> val4 >> val5 >> val6;
+        geomcell[3] = val4;
+        geomcell[4] = val5;
+        geomcell[5] = val6;
+
+        geomcellinfo.push_back(geomcell);
+
+        // TODO: make these last two loops (can change depending on number of levels)
+        // read in ref ratio
+        std::vector<int> refratio(levels.size() - 1);
+        std::getline(x, str);
+        std::istringstream iss2(str);
+        for (int i=0; i < levels.size() - 1; i++) {
+            int ref;
+            iss2 >> ref;
+            refratio[i] = ref;
+        }
+        refratios.push_back(refratio);
+
+        // read in level dimensions
+        std::getline(x, str);
+        size_t first = str.find('(');
+        first = str.find('(', first + 1);
+        first = str.find('(', first + 1); // bounds we want are after third "("
+        size_t end = str.find(')', first);
+
+        std::string dims_str = str.substr(first+1, end-first+1);
+
+        // split, convert to ints
+        std::istringstream iss3(dims_str);
+        std::string val;
+        std::vector<int> dims;
+
+        while (std::getline(iss3, val, ',')) {
+            dims.push_back(std::stoi(val));
+        }
+
+        xDim = dims[0] + 1;
+        yDim = dims[1] + 1;
+        zDim = dims[2] + 1;
+
+
+        // read in level_steps
+        std::vector<int> level_steps_i(levels.size());
+        std::getline(x, str);
+        spdlog::info("Read line for level_steps: {}", str);
+        std::istringstream iss4(str);
+        for (int i=0; i < levels.size(); i++) {
+            int ls;
+            iss4 >> ls;
+            level_steps_i[i] = ls;
+        }
+        level_steps.push_back(level_steps_i);
 
         std::vector<std::vector<Box3D>>      file_boxes;
         std::vector<std::vector<Location>>   file_locations;
@@ -184,4 +270,7 @@ AllData preprocess_data(std::vector<std::string> files,
     return ret;
 
 }
+
+
+
 

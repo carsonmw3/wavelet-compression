@@ -20,34 +20,36 @@ int main(int argc, char* argv[]) {
     amrex::Initialize(argc, argv);
     spdlog::set_level(spdlog::level::debug);
 
-    if (argc != 11) {
+    if (argc != 9) {
         spdlog::info(
-            "Usage: {} mintime maxtime minlevel maxlevel component keep xDim yDim zDim compressedDir",
+            "Usage: {} datadir mintime maxtime minlevel maxlevel component keep compressedDir",
             argv[0]);
         return EXIT_FAILURE;
     }
 
+    std::string      data_dir;
     int              min_time;
     int              max_time;
     int              min_level;
     int              max_level;
     int              component;
     float            keep;
-    int              xDim;
-    int              yDim;
-    int              zDim;
+    // int              xDim;
+    // int              yDim;
+    // int              zDim;
     std::string      compressed_dir;
     amrex::ParmParse pp;
 
+    pp.query("datadir", data_dir);
     pp.query("mintime", min_time);
     pp.query("maxtime", max_time);
     pp.query("minlevel", min_level);
     pp.query("maxlevel", max_level);
     pp.query("component", component);
     pp.query("keep", keep);
-    pp.query("x", xDim);
-    pp.query("y", yDim);
-    pp.query("z", zDim);
+    // pp.query("x", xDim);
+    // pp.query("y", yDim);
+    // pp.query("z", zDim);
     pp.query("compressedDir", compressed_dir);
 
     std::vector<std::string> files;
@@ -74,12 +76,19 @@ int main(int argc, char* argv[]) {
                                    components,
                                    levels);
 
-    auto& boxes      = data.boxes;
-    auto& locations  = data.locations;
-    auto& dimensions = data.dimensions;
-    auto& box_counts = data.box_counts;
-    auto& min_value  = data.min_value;
-    auto& max_value  = data.max_value;
+    auto& boxes       = data.boxes;
+    auto& locations   = data.locations;
+    auto& dimensions  = data.dimensions;
+    auto& box_counts  = data.box_counts;
+    auto& min_value   = data.min_value;
+    auto& max_value   = data.max_value;
+    auto& geomcell    = data.geomcellinfo;
+    auto& ref_ratios  = data.ref_ratios;
+    auto& true_times  = data.true_times;
+    auto& level_steps = data.level_steps;
+    auto& xDim        = data.xDim;
+    auto& yDim        = data.yDim;
+    auto& zDim        = data.zDim;
 
     write_loc_dim_to_bin(locations,
                          compressed_dir,
@@ -187,6 +196,10 @@ int main(int argc, char* argv[]) {
                     dims_read,
                     num_times,
                     num_levels,
+                    geomcell,
+                    ref_ratios,
+                    true_times,
+                    level_steps,
                     xDim,
                     yDim,
                     zDim,

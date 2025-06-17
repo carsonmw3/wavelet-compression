@@ -18,13 +18,20 @@ struct LevelData {
 };
 
 struct AllData {
-        std::vector<std::vector<std::vector<Box3D>>> boxes;
-        LocDimData                                   locations;
-        LocDimData                                   dimensions;
-        std::vector<std::vector<int>>                box_counts;
-        float                                        min_value;
-        float                                        max_value;
-    };
+    std::vector<std::vector<std::vector<Box3D>>> boxes;
+    LocDimData                                   locations;
+    LocDimData                                   dimensions;
+    std::vector<std::vector<int>>                box_counts;
+    float                                        min_value;
+    float                                        max_value;
+    std::vector<std::vector<double>>             geomcellinfo;
+    std::vector<std::vector<int>>                ref_ratios;
+    std::vector<long double>                     true_times;
+    std::vector<std::vector<int>>                level_steps;
+    int                                          xDim;
+    int                                          yDim;
+    int                                          zDim;
+};
 
 
 struct CompressedWavelet {
