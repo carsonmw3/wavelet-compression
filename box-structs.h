@@ -17,6 +17,17 @@ struct LevelData {
     float                   max_value;
 };
 
+struct AMReXInfo {
+    std::vector<std::string>         comp_names;
+    std::vector<std::vector<double>> geomcellinfo;
+    std::vector<int>                 ref_ratios;
+    std::vector<long double>         true_times;
+    std::vector<std::vector<int>>    level_steps;
+    int                              xDim;
+    int                              yDim;
+    int                              zDim;
+};
+
 struct AllData {
     std::vector<std::vector<std::vector<Box3D>>> boxes;
     LocDimData                                   locations;
@@ -24,19 +35,13 @@ struct AllData {
     std::vector<std::vector<int>>                box_counts;
     float                                        min_value;
     float                                        max_value;
-    std::vector<std::vector<double>>             geomcellinfo;
-    std::vector<std::vector<int>>                ref_ratios;
-    std::vector<long double>                     true_times;
-    std::vector<std::vector<int>>                level_steps;
-    int                                          xDim;
-    int                                          yDim;
-    int                                          zDim;
+    AMReXInfo                                    amrexinfo;
 };
 
-
 struct CompressedWavelet {
-    std::vector<int> shape;
-    std::vector<int> coeff_shape;
-    std::vector<std::pair<int, int16_t>> rle_encoded;
+    std::vector<int>                     shape;
+    std::vector<int>                     coeff_shape;
+    std::vector<std::pair<int, float>>   rle_encoded;
+    bool                                 need32;
 };
 

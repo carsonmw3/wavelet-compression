@@ -17,7 +17,7 @@
 
 
 static amrex::MultiFab initializeMF (std::vector<Location>   locations,
-                                    std::vector<Dimensions> dimensions) {
+                                     std::vector<Dimensions> dimensions) {
 
     amrex::BoxList boxes;
 
@@ -98,24 +98,22 @@ void write_plotfiles(std::vector<std::vector<std::vector<Box3D>>> &data,
                      LocDimData                                   dimensions,
                      int                                          num_times,
                      int                                          num_levels,
-                     std::vector<std::vector<double>>             geomcellinfo,
-                     std::vector<std::vector<int>>                refratios,
-                     std::vector<long double>                     true_times,
-                     std::vector<std::vector<int>>                level_steps,
-                     int                                          xDim,
-                     int                                          yDim,
-                     int                                          zDim,
+                     AMReXInfo                                    amrexinfo,
                      std::string                                  out) {
 
     for (int t = 0; t < num_times; t++) {
 
         const std::string name = out + amrex::Concatenate("plt", t+74);
         std::vector<amrex::MultiFab> mfs;
-        const amrex::Vector<std::string> varnames = {"temp"};
         amrex::Vector<amrex::Geometry> geoms;
-        amrex::Real time = true_times[t];
+        amrex::Real time = amrexinfo.true_times[t];
         amrex::Vector<int> level_steps_amr;
         amrex::Vector<amrex::IntVect> ref_ratio;
+        amrex::Vector<std::string> varnames;
+
+        for (std::string& comp : amrexinfo.comp_names) {
+            varnames.push_back(comp);
+        }
 
         for (int l = 0; l < num_levels; l++) {
 
@@ -128,14 +126,14 @@ void write_plotfiles(std::vector<std::vector<std::vector<Box3D>>> &data,
 
             mfs.push_back(std::move(mf));
 
-            int xDimCurrent = xDim * pow(2, l);
-            int yDimCurrent = yDim * pow(2, l);
-            int zDimCurrent = zDim * pow(2, l);
+            int xDimCurrent = amrexinfo.xDim * pow(2, l);
+            int yDimCurrent = amrexinfo.yDim * pow(2, l);
+            int zDimCurrent = amrexinfo.zDim * pow(2, l);
 
             amrex::Box domain(amrex::IntVect(0, 0, 0),
                               amrex::IntVect(xDimCurrent-1, yDimCurrent-1, zDimCurrent-1));
 
-            std::vector<double> geomcell = geomcellinfo[t];
+            std::vector<double> geomcell = amrexinfo.geomcellinfo[t];
             amrex::RealBox cell({geomcell[0], geomcell[1], geomcell[2]},
                                 {geomcell[3], geomcell[4], geomcell[5]});
 
@@ -144,12 +142,15 @@ void write_plotfiles(std::vector<std::vector<std::vector<Box3D>>> &data,
             const amrex::Geometry geom(domain, cell, 0, is_periodic);
             geoms.push_back(geom);
 
-            level_steps_amr.push_back(level_steps[t][l]);
+            level_steps_amr.push_back(amrexinfo.level_steps[t][l]);
 
             if (l > 0) {
-                amrex::IntVect ratio(refratios[t][0], refratios[t][1], refratios[t][2]);
+                amrex::IntVect ratio(amrexinfo.ref_ratios[0],
+                                     amrexinfo.ref_ratios[1],
+                                     amrexinfo.ref_ratios[2]);
                 ref_ratio.push_back(ratio);
             }
+
         }
 
         amrex::Vector<const amrex::MultiFab*> mfPtrs;
@@ -159,6 +160,7 @@ void write_plotfiles(std::vector<std::vector<std::vector<Box3D>>> &data,
         }
 
         const amrex::Vector<const amrex::MultiFab*> constMfs        = mfPtrs;
+        const amrex::Vector<std::string>            constVarnames   = varnames;
         const amrex::Vector<amrex::Geometry>        constGeoms      = geoms;
         const amrex::Vector<int>                    constLevelSteps = level_steps_amr;
         const amrex::Vector<amrex::IntVect>         constRefRatio   = ref_ratio;
@@ -166,7 +168,7 @@ void write_plotfiles(std::vector<std::vector<std::vector<Box3D>>> &data,
         amrex::WriteMultiLevelPlotfile(name,
                                        num_levels,
                                        constMfs,
-                                       varnames,
+                                       constVarnames,
                                        constGeoms,
                                        time,
                                        constLevelSteps,

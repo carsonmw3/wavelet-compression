@@ -8,3 +8,4 @@ CompressedWavelet compress(Box3D const& box,
                            int          level,
                            int          box_index,
                            std::string  compressed_dir);
+

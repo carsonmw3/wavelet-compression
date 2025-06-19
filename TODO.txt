@@ -1,0 +1,12 @@
+- Add doctest/testing
+
+- Write different components with int16, int32, or float32 depending on what their coefficients require
+	- Normalize coefficients?
+
+- Add support for multiple components in one run
+
+- Class for iterating through component/time/lev/box?
+
+- Split compressor/decompressor
+
+- Ensure everything needed for decompression is written into compressed_dir

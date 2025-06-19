@@ -3,10 +3,6 @@
 #include <spdlog/spdlog.h>
 #include <fstream>
 
-
-// TODO: Note the addition of 'static'. This is a weird c++ thing; if you
-// only use a function inside a single .cpp, it is recommended to tell the
-// compiler that.
 static void write_float(std::ofstream& stream, float val) {
     stream.write(reinterpret_cast<const char*>(&val), sizeof(float));
 }
@@ -174,18 +170,18 @@ void write_box_with_loc_dim(Volume3D           volume,
 
     std::ofstream file = open_write(path, out_file);
 
-    // Write location
+           // Write location
     for (float coord : location) {
         write_float(file, coord);
     }
 
-    // Write dimension
+           // Write dimension
     for (float dim : dimension) {
         write_float(file, dim);
     }
 
 
-    // Write volume data
+           // Write volume data
     volume.iterate([&](float value, size_t, size_t, size_t) {
         write_float(file, value);
     });

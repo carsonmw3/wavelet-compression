@@ -4,7 +4,7 @@
 #include <cmath>
 
 double calc_avg_rmse(std::vector<std::vector<std::vector<Box3D>>> const& actuals,
-              std::vector<std::vector<std::vector<Box3D>>> const& regens) {
+                     std::vector<std::vector<std::vector<Box3D>>> const& regens) {
 
     std::vector<double> rmses;
 
@@ -53,3 +53,4 @@ double calc_avg_rmse(std::vector<std::vector<std::vector<Box3D>>> const& actuals
 double calc_adj_loss(double rmse, double range) {
     return rmse / range;
 }
+

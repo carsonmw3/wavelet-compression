@@ -7,7 +7,7 @@
 #include <fstream>
 #include <string>
 
-std::vector<float> rle_decode(std::vector<std::pair<int, int16_t>> rle_encoded,
+std::vector<float> rle_decode(std::vector<std::pair<int, float>> rle_encoded,
                               int total_length) {
 
     std::vector<float> result(total_length, 0.0f);
@@ -30,12 +30,12 @@ static CompressedWavelet deserialize_compressed_wavelet(const std::string& data)
     CompressedWavelet compressed;
     const char*       ptr = data.data(); // Pointer to start of binary data
 
-    auto read = [&](auto& out) {
-        std::memcpy(&out, ptr, sizeof(out));
-        ptr += sizeof(out);
-    };
+    // auto read = [&](auto& out) {
+    //     std::memcpy(&out, ptr, sizeof(out));
+    //     ptr += sizeof(out);
+    // };
 
-    // Shape (3 dimensions)
+           // Shape (3 dimensions)
     for (int i = 0; i < 3; ++i) {
         int dim;
         std::memcpy(&dim, ptr, sizeof(dim));
@@ -43,7 +43,7 @@ static CompressedWavelet deserialize_compressed_wavelet(const std::string& data)
         compressed.shape.push_back(dim);
     }
 
-    // Coeff shape (1 dimension)
+           // Coeff shape (1 dimension)
     for (int i = 0; i < 1; ++i) {
         int dim;
         std::memcpy(&dim, ptr, sizeof(dim));
@@ -51,16 +51,16 @@ static CompressedWavelet deserialize_compressed_wavelet(const std::string& data)
         compressed.coeff_shape.push_back(dim);
     }
 
-    // RLE size
+           // RLE size
     int rle_size;
     std::memcpy(&rle_size, ptr, sizeof(rle_size));
     ptr += sizeof(rle_size);
     compressed.rle_encoded.resize(rle_size);
 
-    // RLE data
+           // RLE data
     for (int i = 0; i < rle_size; ++i) {
         int     run;
-        int16_t val;
+        float val;
         std::memcpy(&run, ptr, sizeof(run));
         ptr += sizeof(run);
         std::memcpy(&val, ptr, sizeof(val));
@@ -82,7 +82,7 @@ Box3D inverse_wavelet_decompose(std::vector<float> flat, int x, int y, int z) {
             for (int k = 0; k < z; ++k)
                 temp(i, j, k) = flat[idx++];
 
-    // Step 2: Inverse along X
+           // Step 2: Inverse along X
     for (int j = 0; j < y; ++j) {
         for (int k = 0; k < z; ++k) {
             std::vector<double> depth(x);
@@ -103,7 +103,7 @@ Box3D inverse_wavelet_decompose(std::vector<float> flat, int x, int y, int z) {
         }
     }
 
-    // Step 3: Inverse along Y
+           // Step 3: Inverse along Y
     for (int i = 0; i < x; ++i) {
         for (int k = 0; k < z; ++k) {
             std::vector<double> col(y);
@@ -124,7 +124,7 @@ Box3D inverse_wavelet_decompose(std::vector<float> flat, int x, int y, int z) {
         }
     }
 
-    // Step 4: Inverse along Z
+           // Step 4: Inverse along Z
     for (int i = 0; i < x; ++i) {
         for (int j = 0; j < y; ++j) {
             std::vector<double> row(z);
@@ -152,7 +152,7 @@ Box3D inverse_wavelet_decompose(std::vector<float> flat, int x, int y, int z) {
 CompressedWavelet read_compressed_wavelet(const std::string& filename) {
     CompressedWavelet compressed;
 
-    // Get file size and read contents
+           // Get file size and read contents
     std::error_code ec;
     auto            size = std::filesystem::file_size(filename, ec);
     if (ec) {
@@ -172,7 +172,7 @@ CompressedWavelet read_compressed_wavelet(const std::string& filename) {
         exit(EXIT_FAILURE);
     }
 
-    // Initialize LZMA stream with RAII
+           // Initialize LZMA stream with RAII
     lzma_stream strm = LZMA_STREAM_INIT;
     if (lzma_stream_decoder(&strm, UINT64_MAX, LZMA_CONCATENATED) != LZMA_OK) {
         spdlog::error("Failed to initialize LZMA decoder.");
@@ -197,7 +197,7 @@ CompressedWavelet read_compressed_wavelet(const std::string& filename) {
             exit(EXIT_FAILURE);
         }
 
-        // Buffer full, expand
+               // Buffer full, expand
         size_t old_size = decompressed_data.size();
         decompressed_data.resize(old_size * 2);
         strm.next_out  = decompressed_data.data() + old_size;
@@ -219,3 +219,4 @@ CompressedWavelet read_compressed_wavelet(const std::string& filename) {
 
     return compressed;
 }
+

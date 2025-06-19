@@ -5,11 +5,14 @@
 
 #include <fstream>
 #include <string>
+#include <cmath>
+#include <cstdint>
+#include <algorithm>
 
-static std::vector<std::pair<int, int16_t>> rle_encode(std::vector<bool>    mask,
-                                                std::vector<int16_t> values) {
+static std::vector<std::pair<int, float>> rle_encode(std::vector<bool>    mask,
+                                                       std::vector<float> values) {
 
-    std::vector<std::pair<int, int16_t>> rle;
+    std::vector<std::pair<int, float>> rle;
     int                                  run_length = 0;
     int                                  val_idx    = 0;
 
@@ -47,7 +50,7 @@ static std::string serialize_compressed_wavelet(CompressedWavelet compressed) {
 
     for (const auto& [run, val] : compressed.rle_encoded) {
         buffer.append(reinterpret_cast<const char*>(&run), sizeof(int));
-        buffer.append(reinterpret_cast<const char*>(&val), sizeof(int16_t));
+        buffer.append(reinterpret_cast<const char*>(&val), sizeof(float));
     }
 
     return buffer;
@@ -62,7 +65,7 @@ static std::vector<double> wavelet_decompose(Box3D const& box) {
     Box3D               temp = box.clone();
     std::vector<double> flat;
 
-    // Decompose along Z
+           // Decompose along Z
     for (int i = 0; i < x; ++i) {
         for (int j = 0; j < y; ++j) {
             std::vector<double> row(z);
@@ -87,7 +90,7 @@ static std::vector<double> wavelet_decompose(Box3D const& box) {
         }
     }
 
-    // Repeat for Y
+           // Repeat for Y
     for (int i = 0; i < x; ++i) {
         for (int k = 0; k < z; ++k) {
             std::vector<double> col(y);
@@ -112,7 +115,7 @@ static std::vector<double> wavelet_decompose(Box3D const& box) {
         }
     }
 
-    // Repeat for X
+           // Repeat for X
     for (int j = 0; j < y; ++j) {
         for (int k = 0; k < z; ++k) {
             std::vector<double> depth(x);
@@ -137,7 +140,7 @@ static std::vector<double> wavelet_decompose(Box3D const& box) {
         }
     }
 
-    // Flatten result
+           // Flatten result
     for (int i = 0; i < x; ++i)
         for (int j = 0; j < y; ++j)
             for (int k = 0; k < z; ++k)
@@ -157,35 +160,43 @@ CompressedWavelet compress(Box3D const& box,
     // Wavelet decomposition
     std::vector<double> flat_coeffs = wavelet_decompose(box);
 
-    // Thresholding
+           // Thresholding
     double max_val =
         *std::max_element(flat_coeffs.begin(),
                           flat_coeffs.end(),
-                          [](double a, double b) { return abs(a) < abs(b); });
+                          [](double a, double b) { return std::abs(a) < std::abs(b); });
     double thresh = max_val * (1 - keep);
 
-    std::vector<bool>    mask;
-    std::vector<int16_t> values;
+    // TODO: store 16bits if possible? If so, need to write
+    // code to write/read need32 in .xz files
+    std::vector<bool>  mask;
+    std::vector<float> values;
+    bool               need32 = false;
     for (double val : flat_coeffs) {
-        bool keep_val = abs(val) > thresh;
+        bool keep_val = std::abs(val) > thresh;
         mask.push_back(keep_val);
         if (keep_val) {
-            values.push_back(static_cast<int16_t>(round(val * 1000.0) / 1000));
+            if (std::abs(val) > INT16_MAX) {
+                need32 = true;
+            }
+            values.push_back(static_cast<float>(val));
+            // values.push_back(static_cast<float>(round(val * 1000.0) / 1000));
         }
     }
 
-    // RLE encode
-    std::vector<std::pair<int, int16_t>> rle_encoded = rle_encode(mask, values);
+           // RLE encode
+    std::vector<std::pair<int, float>> rle_encoded = rle_encode(mask, values);
 
-    // Create compressed structure
+           // Create compressed structure
     CompressedWavelet compressed;
     compressed.shape       = { static_cast<int>(box.width()),
                                static_cast<int>(box.height()),
                                static_cast<int>(box.depth()) };
     compressed.coeff_shape = { static_cast<int>(flat_coeffs.size()) };
     compressed.rle_encoded = rle_encoded;
+    compressed.need32 = need32;
 
-    // Serialize and compress using lzma
+           // Serialize and compress using lzma
     std::string filename = compressed_dir + "compressed-wavelet-" +
                            std::to_string(time) + "-" + std::to_string(level) +
                            "-" + std::to_string(box_index) + ".xz";
@@ -202,17 +213,17 @@ CompressedWavelet compress(Box3D const& box,
             exit(EXIT_FAILURE);
         }
 
-        // Input
+               // Input
         strm.next_in  = reinterpret_cast<const uint8_t*>(serialized.data());
         strm.avail_in = serialized.size();
 
-        // Output buffer (reserve slightly more than input)
+               // Output buffer (reserve slightly more than input)
         std::vector<uint8_t> outbuf(serialized.size() * 1.1 +
                                     128); // +128 safety
         strm.next_out  = outbuf.data();
         strm.avail_out = outbuf.size();
 
-        // Compress
+               // Compress
         ret = lzma_code(&strm, LZMA_FINISH);
         if (ret != LZMA_STREAM_END) {
             // This should be fatal
@@ -222,7 +233,7 @@ CompressedWavelet compress(Box3D const& box,
 
         lzma_end(&strm);
 
-        // Write compressed data
+               // Write compressed data
         file.write(reinterpret_cast<const char*>(outbuf.data()),
                    outbuf.size() - strm.avail_out);
         file.close();
@@ -230,3 +241,4 @@ CompressedWavelet compress(Box3D const& box,
 
     return compressed;
 }
+

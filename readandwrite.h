@@ -36,3 +36,4 @@ void write_box_with_loc_dim(Volume3D           volume,
                             std::string        out_file,
                             std::vector<float> location,
                             std::vector<float> dimension);
+

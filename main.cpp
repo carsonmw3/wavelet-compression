@@ -34,9 +34,6 @@ int main(int argc, char* argv[]) {
     int              max_level;
     int              component;
     float            keep;
-    // int              xDim;
-    // int              yDim;
-    // int              zDim;
     std::string      compressed_dir;
     amrex::ParmParse pp;
 
@@ -47,14 +44,11 @@ int main(int argc, char* argv[]) {
     pp.query("maxlevel", max_level);
     pp.query("component", component);
     pp.query("keep", keep);
-    // pp.query("x", xDim);
-    // pp.query("y", yDim);
-    // pp.query("z", zDim);
     pp.query("compressedDir", compressed_dir);
 
     std::vector<std::string> files;
     for (int t = min_time; t < max_time+1; t++) {
-        std::string filename = "../../../raw/plt0" + std::to_string(t) + "00";
+        std::string filename = data_dir +"plt0" + std::to_string(t) + "00";
         files.push_back(filename);
     }
 
@@ -82,13 +76,7 @@ int main(int argc, char* argv[]) {
     auto& box_counts  = data.box_counts;
     auto& min_value   = data.min_value;
     auto& max_value   = data.max_value;
-    auto& geomcell    = data.geomcellinfo;
-    auto& ref_ratios  = data.ref_ratios;
-    auto& true_times  = data.true_times;
-    auto& level_steps = data.level_steps;
-    auto& xDim        = data.xDim;
-    auto& yDim        = data.yDim;
-    auto& zDim        = data.zDim;
+    auto& amrexinfo   = data.amrexinfo;
 
     write_loc_dim_to_bin(locations,
                          compressed_dir,
@@ -196,13 +184,7 @@ int main(int argc, char* argv[]) {
                     dims_read,
                     num_times,
                     num_levels,
-                    geomcell,
-                    ref_ratios,
-                    true_times,
-                    level_steps,
-                    xDim,
-                    yDim,
-                    zDim,
+                    amrexinfo,
                     "../../regenerated-plotfiles/");
 
     spdlog::info("Sucessfully wrote plotfiles.");
