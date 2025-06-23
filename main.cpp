@@ -20,19 +20,12 @@ int main(int argc, char* argv[]) {
     amrex::Initialize(argc, argv);
     spdlog::set_level(spdlog::level::debug);
 
-    if (argc != 9) {
-        spdlog::info(
-            "Usage: {} datadir mintime maxtime minlevel maxlevel component keep compressedDir",
-            argv[0]);
-        return EXIT_FAILURE;
-    }
-
     std::string      data_dir;
     int              min_time;
     int              max_time;
     int              min_level;
     int              max_level;
-    int              component;
+    std::vector<int> components;
     float            keep;
     std::string      compressed_dir;
     amrex::ParmParse pp;
@@ -42,7 +35,7 @@ int main(int argc, char* argv[]) {
     pp.query("maxtime", max_time);
     pp.query("minlevel", min_level);
     pp.query("maxlevel", max_level);
-    pp.query("component", component);
+    pp.queryarr("components", components);
     pp.query("keep", keep);
     pp.query("compressedDir", compressed_dir);
 
@@ -57,14 +50,12 @@ int main(int argc, char* argv[]) {
         levels.push_back(l);
     }
 
-    std::vector<int> components;
-    components.push_back(component);
-
     spdlog::info("Processing data...");
     auto start = std::chrono::high_resolution_clock::now();
 
-    int num_times = max_time - min_time + 1;
-    int num_levels = max_level - min_level + 1;
+    int num_times      = max_time - min_time + 1;
+    int num_levels     = max_level - min_level + 1;
+    int num_components = components.size();
 
     AllData data = preprocess_data(files,
                                    components,
@@ -74,8 +65,8 @@ int main(int argc, char* argv[]) {
     auto& locations   = data.locations;
     auto& dimensions  = data.dimensions;
     auto& box_counts  = data.box_counts;
-    auto& min_value   = data.min_value;
-    auto& max_value   = data.max_value;
+    auto& min_values  = data.min_values;
+    auto& max_values  = data.max_values;
     auto& amrexinfo   = data.amrexinfo;
 
     write_loc_dim_to_bin(locations,
@@ -106,9 +97,9 @@ int main(int argc, char* argv[]) {
         for (int lev = 0; lev <= max_level - min_level; lev++) {
             for (int box_idx = 0; box_idx < boxes[t][lev].size(); box_idx++) {
 
-                Box3D const&      current_box = boxes[t][lev][box_idx];
-                CompressedWavelet compressed  = compress(
-                    current_box, keep, t, lev, box_idx, compressed_dir);
+                multiBox3D& current_box = boxes[t][lev][box_idx];
+                compress(
+                    current_box, components, keep, t, lev, box_idx, compressed_dir);
             }
         }
     }
@@ -125,30 +116,30 @@ int main(int argc, char* argv[]) {
                                        num_times,
                                        num_levels);
 
-    std::vector<std::vector<std::vector<Box3D>>> regen_boxes;
+    std::vector<std::vector<std::vector<multiBox3D>>> regen_boxes;
 
     for (int t = 0; t <= max_time - min_time; t++) {
-        std::vector<std::vector<Box3D>> regen_boxes_t;
+        std::vector<std::vector<multiBox3D>> regen_boxes_t;
         for (int lev = 0; lev <= max_level - min_level; lev++) {
-            std::vector<Box3D> regen_boxes_l;
+            std::vector<multiBox3D> regen_boxes_l;
             for (int box_idx = 0; box_idx < boxes[t][lev].size(); box_idx++) {
 
-                std::string file_path = compressed_dir + "compressed-wavelet-" +
-                                        std::to_string(t) + "-" +
-                                        std::to_string(lev) + "-" +
-                                        std::to_string(box_idx) + ".xz";
+                multiBox3D multibox;
 
-                CompressedWavelet read_compressed =
-                    read_compressed_wavelet(file_path);
+                for (int component : components) {
 
-                auto read_flat = rle_decode(read_compressed.rle_encoded,
-                                            read_compressed.coeff_shape[0]);
+                    std::string file_path = compressed_dir + "compressed-wavelet-" +
+                                            std::to_string(t) + "-" +
+                                            std::to_string(lev) + "-" +
+                                            std::to_string(component) + "-" +
+                                            std::to_string(box_idx) + ".xz";
 
-                auto const& dims      = read_compressed.shape;
-                Box3D       regen_box = inverse_wavelet_decompose(
-                    read_flat, dims[0], dims[1], dims[2]);
+                    Box3D curr_box = decompress(file_path, t, lev, component, box_idx);
 
-                regen_boxes_l.push_back(std::move(regen_box));
+                    multibox.push_back(std::move(curr_box));
+
+                }
+                regen_boxes_l.push_back(std::move(multibox));
             }
             regen_boxes_t.push_back(std::move(regen_boxes_l));
         }
@@ -161,11 +152,12 @@ int main(int argc, char* argv[]) {
                  duration2);
 
 
-    double rmse = calc_avg_rmse(boxes, regen_boxes);
-    spdlog::info("RMSE = {}", rmse);
-
-    double loss = calc_adj_loss(rmse, max_value-min_value);
-    spdlog::info("Adjusted loss = {}", loss);
+    std::vector<double> rmses = calc_avg_rmse(boxes, regen_boxes, num_components);
+    for (int c = 0; c < num_components; c++) {
+        spdlog::info("RMSE, {} = {}", amrexinfo.comp_names[c], rmses[c]);
+        double loss = calc_adj_loss(rmses[c], max_values[c]-min_values[c]);
+        spdlog::info("Adjusted loss, {} = {}", amrexinfo.comp_names[c], loss);
+    }
 
     LocDimData locs_read = read_loc_dim_from_bin(compressed_dir,
                                                  "locations.raw",
@@ -184,6 +176,7 @@ int main(int argc, char* argv[]) {
                     dims_read,
                     num_times,
                     num_levels,
+                    num_components,
                     amrexinfo,
                     "../../regenerated-plotfiles/");
 

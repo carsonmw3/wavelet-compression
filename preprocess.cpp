@@ -13,8 +13,8 @@
 // number of chunks of data (boxes), and each entry is a vector of floats where
 // the first three are the location of the box, the next three are the dimensions of
 // the box, and the rest is the data itself in order x, y, z.
-static LevelData collectDataNewFormat (std::string lev_file,
-                                       int         component) {
+static LevelData collectDataNewFormat (std::string      lev_file,
+                                       std::vector<int> components) {
 
     LevelData ret;
 
@@ -22,12 +22,14 @@ static LevelData collectDataNewFormat (std::string lev_file,
     auto& locations  = ret.locations;
     auto& dimensions = ret.dimensions;
     auto& box_count  = ret.box_count;
-    auto& min_value  = ret.min_value;
-    auto& max_value  = ret.max_value;
+    auto& min_values = ret.min_values;
+    auto& max_values = ret.max_values;
 
     box_count = 0;
-    min_value = std::numeric_limits<float>::max();
-    max_value = std::numeric_limits<float>::min();
+    min_values = std::vector<float>(components.size(),
+                                    std::numeric_limits<float>::max());
+    max_values = std::vector<float>(components.size(),
+                                    std::numeric_limits<float>::min());
 
     amrex::MultiFab mf;
 
@@ -57,24 +59,27 @@ static LevelData collectDataNewFormat (std::string lev_file,
         dims.push_back(shape[2]);
         dimensions.push_back(dims);
 
-        Box3D box_data(shape[0], shape[1], shape[2]);
+        multiBox3D box_data;
 
-        for (auto k = lo.z; k <= hi.z; ++k) {
-            for (auto j = lo.y; j <= hi.y; ++j) {
-                for (auto i = lo.x; i <= hi.x; ++i) {
+        for (int c = 0; c < components.size(); c++) {
 
-                    float value = mfdata(i,j,k,component);
+            box_data.push_back(Box3D(shape[0], shape[1], shape[2], 0.0f));
 
-                    box_data.set(i-lo.x, j-lo.y, k-lo.z, value);
+            for (auto k = lo.z; k <= hi.z; ++k) {
+                for (auto j = lo.y; j <= hi.y; ++j) {
+                    for (auto i = lo.x; i <= hi.x; ++i) {
 
-                    if (value < min_value) {
-                        min_value = value;
+                        float value = mfdata(i,j,k,components[c]);
+                        box_data[c].set(i-lo.x, j-lo.y, k-lo.z, value);
+
+                        if (value < min_values[c]) {
+                            min_values[c] = value;
+                        }
+
+                        if (value > max_values[c]) {
+                                max_values[c] = value;
+                        }
                     }
-
-                    if (value > max_value) {
-                        max_value = value;
-                    }
-
                 }
             }
         }
@@ -101,12 +106,14 @@ AllData preprocess_data(std::vector<std::string> files,
     auto& locations    = ret.locations;
     auto& dimensions   = ret.dimensions;
     auto& box_counts   = ret.box_counts;
-    auto& minval       = ret.min_value;
-    auto& maxval       = ret.max_value;
+    auto& minvals      = ret.min_values;
+    auto& maxvals      = ret.max_values;
     auto& amrexinfo    = ret.amrexinfo;
 
-    minval = std::numeric_limits<float>::max();
-    maxval = std::numeric_limits<float>::min();
+    minvals = std::vector<float>(components.size(),
+                                    std::numeric_limits<float>::max());
+    maxvals = std::vector<float>(components.size(),
+                                    std::numeric_limits<float>::min());
 
     for (int i = 0; i < files.size(); i++) {
 
@@ -233,7 +240,7 @@ AllData preprocess_data(std::vector<std::string> files,
         }
         amrexinfo.level_steps.push_back(level_steps_i);
 
-        std::vector<std::vector<Box3D>>      file_boxes;
+        std::vector<std::vector<multiBox3D>> file_boxes;
         std::vector<std::vector<Location>>   file_locations;
         std::vector<std::vector<Dimensions>> file_dimensions;
         std::vector<int>                     file_box_counts;
@@ -244,7 +251,7 @@ AllData preprocess_data(std::vector<std::string> files,
             std::string lev_file = filename + levX;
 
             // TODO: add multi-component support
-            LevelData read_boxes = collectDataNewFormat(lev_file, components[0]);
+            LevelData read_boxes = collectDataNewFormat(lev_file, components);
 
             spdlog::info("Processed data from time {}, level {}", i, level);
 
@@ -253,14 +260,17 @@ AllData preprocess_data(std::vector<std::string> files,
             file_dimensions.push_back(read_boxes.dimensions);
             file_box_counts.push_back(read_boxes.box_count);
 
-            float min = read_boxes.min_value;
-            if (min < minval) {
-                minval = min;
-            }
+            for (int c = 0; c < components.size(); c++){
 
-            float max = read_boxes.max_value;
-            if (max > maxval) {
-                maxval = max;
+                float min = read_boxes.min_values[c];
+                if (min < minvals[c]) {
+                    minvals[c] = min;
+                }
+
+                float max = read_boxes.max_values[c];
+                if (max > maxvals[c]) {
+                    maxvals[c] = max;
+                }
             }
 
         }

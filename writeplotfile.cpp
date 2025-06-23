@@ -17,7 +17,8 @@
 
 
 static amrex::MultiFab initializeMF (std::vector<Location>   locations,
-                                     std::vector<Dimensions> dimensions) {
+                                     std::vector<Dimensions> dimensions,
+                                     int                     num_components) {
 
     amrex::BoxList boxes;
 
@@ -40,10 +41,9 @@ static amrex::MultiFab initializeMF (std::vector<Location>   locations,
     amrex::BoxArray            array(boxes);
     amrex::DistributionMapping dm(array);
 
-    int ncomp = 1;
     int ngrow = 0;
 
-    amrex::MultiFab output(array, dm, ncomp, ngrow);
+    amrex::MultiFab output(array, dm, num_components, ngrow);
 
     if (output.size() == 0) {
         spdlog::error("Error: MultiFab not initialized correctly.");
@@ -54,8 +54,9 @@ static amrex::MultiFab initializeMF (std::vector<Location>   locations,
 }
 
 
-static void populateMF (amrex::MultiFab&    multi,
-                       std::vector<Box3D>& data) {
+static void populateMF (amrex::MultiFab&         multi,
+                        std::vector<multiBox3D>& data,
+                        int                      num_components) {
 
     int box_idx = 0;
 
@@ -71,16 +72,21 @@ static void populateMF (amrex::MultiFab&    multi,
         const auto                       lo     = lbound(box);
         const auto                       hi     = ubound(box);
 
-        Box3D& current = data[box_idx];
+        multiBox3D& current = data[box_idx];
 
-        for (int k = lo.z; k <= hi.z; k++) {
+        for (int c = 0; c < num_components; c++) {
 
-            for (int j = lo.y; j <= hi.y; j++) {
+            Box3D& curr_box = current[c];
 
-                for (int i = lo.x; i <= hi.x; i++) {
+            for (int k = lo.z; k <= hi.z; k++) {
 
-                    mfdata(i,j,k,0) = current.get(i-lo.x, j-lo.y, k-lo.z);
+                for (int j = lo.y; j <= hi.y; j++) {
 
+                    for (int i = lo.x; i <= hi.x; i++) {
+
+                            mfdata(i,j,k,c) = curr_box.get(i-lo.x, j-lo.y, k-lo.z);
+
+                    }
                 }
             }
         }
@@ -93,11 +99,12 @@ static void populateMF (amrex::MultiFab&    multi,
 
 
 // TODO: generalize output parameters
-void write_plotfiles(std::vector<std::vector<std::vector<Box3D>>> &data,
+void write_plotfiles(std::vector<std::vector<std::vector<multiBox3D>>> &data,
                      LocDimData                                   locations,
                      LocDimData                                   dimensions,
                      int                                          num_times,
                      int                                          num_levels,
+                     int                                          num_components,
                      AMReXInfo                                    amrexinfo,
                      std::string                                  out) {
 
@@ -119,10 +126,10 @@ void write_plotfiles(std::vector<std::vector<std::vector<Box3D>>> &data,
 
             std::vector<Location>   current_locs = locations[t][l];
             std::vector<Dimensions> current_dims = dimensions[t][l];
-            std::vector<Box3D>&     current_data = data[t][l];
+            std::vector<multiBox3D>&     current_data = data[t][l];
 
-            amrex::MultiFab mf = initializeMF(current_locs, current_dims);
-            populateMF(mf, current_data);
+            amrex::MultiFab mf = initializeMF(current_locs, current_dims, num_components);
+            populateMF(mf, current_data, num_components);
 
             mfs.push_back(std::move(mf));
 

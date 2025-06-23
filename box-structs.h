@@ -1,20 +1,22 @@
 #pragma once
 
 #include "grid.h"
+#include <string>
 
 using Box3D      = Grid3D<float>;
+using multiBox3D = std::vector<Box3D>;
 using Volume3D   = Grid3D<float>;
 using Location   = std::vector<int>;
 using Dimensions = std::vector<int>;
 using LocDimData = std::vector<std::vector<std::vector<std::vector<int>>>>;
 
 struct LevelData {
-    std::vector<Box3D>      boxes;
+    std::vector<multiBox3D> boxes;
     std::vector<Location>   locations;
     std::vector<Dimensions> dimensions;
     int                     box_count;
-    float                   min_value;
-    float                   max_value;
+    std::vector<float>      min_values;
+    std::vector<float>      max_values;
 };
 
 struct AMReXInfo {
@@ -29,13 +31,13 @@ struct AMReXInfo {
 };
 
 struct AllData {
-    std::vector<std::vector<std::vector<Box3D>>> boxes;
-    LocDimData                                   locations;
-    LocDimData                                   dimensions;
-    std::vector<std::vector<int>>                box_counts;
-    float                                        min_value;
-    float                                        max_value;
-    AMReXInfo                                    amrexinfo;
+    std::vector<std::vector<std::vector<multiBox3D>>> boxes;
+    LocDimData                                        locations;
+    LocDimData                                        dimensions;
+    std::vector<std::vector<int>>                     box_counts;
+    std::vector<float>                                min_values;
+    std::vector<float>                                max_values;
+    AMReXInfo                                         amrexinfo;
 };
 
 struct CompressedWavelet {

@@ -6,8 +6,10 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <utility>
 
-std::vector<float> rle_decode(std::vector<std::pair<int, float>> rle_encoded,
+
+static std::vector<float> rle_decode(std::vector<std::pair<int, float>> rle_encoded,
                               int total_length) {
 
     std::vector<float> result(total_length, 0.0f);
@@ -72,7 +74,7 @@ static CompressedWavelet deserialize_compressed_wavelet(const std::string& data)
 }
 
 
-Box3D inverse_wavelet_decompose(std::vector<float> flat, int x, int y, int z) {
+static Box3D inverse_wavelet_decompose(std::vector<float> flat, int x, int y, int z) {
     // Step 1: reshape the flat array into a 3D volume
     Box3D temp(x, y, z);
 
@@ -149,14 +151,14 @@ Box3D inverse_wavelet_decompose(std::vector<float> flat, int x, int y, int z) {
 }
 
 
-CompressedWavelet read_compressed_wavelet(const std::string& filename) {
+static CompressedWavelet read_compressed_wavelet(const std::string& filename) {
     CompressedWavelet compressed;
 
            // Get file size and read contents
     std::error_code ec;
     auto            size = std::filesystem::file_size(filename, ec);
     if (ec) {
-        spdlog::error("Error getting file size: {}", ec.message());
+        spdlog::error("Error getting file size: {} {}", ec.message(), filename);
         exit(EXIT_FAILURE);
     }
 
@@ -218,5 +220,25 @@ CompressedWavelet read_compressed_wavelet(const std::string& filename) {
     }
 
     return compressed;
+}
+
+
+Box3D decompress (std::string file_path,
+                  int         time,
+                  int         level,
+                  int         component,
+                  int         box_idx) {
+
+    CompressedWavelet read_compressed =
+        read_compressed_wavelet(file_path);
+
+    auto read_flat = rle_decode(read_compressed.rle_encoded,
+                                read_compressed.coeff_shape[0]);
+
+    auto const& dims = read_compressed.shape;
+    Box3D regen_box = inverse_wavelet_decompose(read_flat,
+                                                dims[0], dims[1], dims[2]);
+
+    return regen_box;
 }
 

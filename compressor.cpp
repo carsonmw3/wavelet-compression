@@ -150,95 +150,102 @@ static std::vector<double> wavelet_decompose(Box3D const& box) {
 }
 
 
-CompressedWavelet compress(Box3D const& box,
-                           double       keep,
-                           int          time,
-                           int          level,
-                           int          box_index,
-                           std::string  compressed_dir) {
+void compress(multiBox3D&      box,
+                           std::vector<int> components,
+                           double           keep,
+                           int              time,
+                           int              level,
+                           int              box_index,
+                           std::string      compressed_dir) {
 
-    // Wavelet decomposition
-    std::vector<double> flat_coeffs = wavelet_decompose(box);
+    for (int c = 0; c < components.size(); c++){
 
-           // Thresholding
-    double max_val =
-        *std::max_element(flat_coeffs.begin(),
-                          flat_coeffs.end(),
-                          [](double a, double b) { return std::abs(a) < std::abs(b); });
-    double thresh = max_val * (1 - keep);
+        Box3D comp_box = box[c].clone();
 
-    // TODO: store 16bits if possible? If so, need to write
-    // code to write/read need32 in .xz files
-    std::vector<bool>  mask;
-    std::vector<float> values;
-    bool               need32 = false;
-    for (double val : flat_coeffs) {
-        bool keep_val = std::abs(val) > thresh;
-        mask.push_back(keep_val);
-        if (keep_val) {
-            if (std::abs(val) > INT16_MAX) {
-                need32 = true;
+        // Wavelet decomposition
+        std::vector<double> flat_coeffs = wavelet_decompose(comp_box);
+
+        // Thresholding
+        double max_val =
+            *std::max_element(flat_coeffs.begin(),
+                              flat_coeffs.end(),
+                              [](double a, double b) { return std::abs(a) < std::abs(b); });
+        double thresh = max_val * (1 - keep);
+
+        // TODO: store 16bits if possible? If so, need to write
+        // code to write/read need32 in .xz files
+        std::vector<bool>  mask;
+        std::vector<float> values;
+        bool               need32 = false;
+        for (double val : flat_coeffs) {
+            bool keep_val = std::abs(val) > thresh;
+            mask.push_back(keep_val);
+            if (keep_val) {
+                if (std::abs(val) > INT16_MAX) {
+                    need32 = true;
+                }
+                values.push_back(static_cast<float>(val));
+                // values.push_back(static_cast<float>(round(val * 1000.0) / 1000));
             }
-            values.push_back(static_cast<float>(val));
-            // values.push_back(static_cast<float>(round(val * 1000.0) / 1000));
         }
+
+               // RLE encode
+        std::vector<std::pair<int, float>> rle_encoded = rle_encode(mask, values);
+
+               // Create compressed structure
+        CompressedWavelet compressed;
+        compressed.shape       = { static_cast<int>(comp_box.width()),
+                                   static_cast<int>(comp_box.height()),
+                                   static_cast<int>(comp_box.depth()) };
+        compressed.coeff_shape = { static_cast<int>(flat_coeffs.size()) };
+        compressed.rle_encoded = rle_encoded;
+        compressed.need32 = need32;
+
+               // Serialize and compress using lzma
+        std::string filename = compressed_dir + "compressed-wavelet-" +
+                               std::to_string(time) + "-" + std::to_string(level) +
+                               "-" + std::to_string(components[c]) + "-" +
+                               std::to_string(box_index) + ".xz";
+
+        std::ofstream file(filename, std::ios::binary);
+        if (file.is_open()) {
+            std::string serialized = serialize_compressed_wavelet(compressed);
+
+            lzma_stream strm = LZMA_STREAM_INIT;
+            lzma_ret    ret  = lzma_easy_encoder(
+                &strm, 6 /* compression level */, LZMA_CHECK_CRC64);
+            if (ret != LZMA_OK) {
+                spdlog::error("Failed to initialize LZMA encoder: {}");
+                exit(EXIT_FAILURE);
+            }
+
+                   // Input
+            strm.next_in  = reinterpret_cast<const uint8_t*>(serialized.data());
+            strm.avail_in = serialized.size();
+
+                   // Output buffer (reserve slightly more than input)
+            std::vector<uint8_t> outbuf(serialized.size() * 1.1 +
+                                        128); // +128 safety
+            strm.next_out  = outbuf.data();
+            strm.avail_out = outbuf.size();
+
+                   // Compress
+            ret = lzma_code(&strm, LZMA_FINISH);
+            if (ret != LZMA_STREAM_END) {
+                // This should be fatal
+                spdlog::error("LZMA compression failed: {}");
+                exit(EXIT_FAILURE);
+            }
+
+            lzma_end(&strm);
+
+                   // Write compressed data
+            file.write(reinterpret_cast<const char*>(outbuf.data()),
+                       outbuf.size() - strm.avail_out);
+            file.close();
+        }
+
+
     }
-
-           // RLE encode
-    std::vector<std::pair<int, float>> rle_encoded = rle_encode(mask, values);
-
-           // Create compressed structure
-    CompressedWavelet compressed;
-    compressed.shape       = { static_cast<int>(box.width()),
-                               static_cast<int>(box.height()),
-                               static_cast<int>(box.depth()) };
-    compressed.coeff_shape = { static_cast<int>(flat_coeffs.size()) };
-    compressed.rle_encoded = rle_encoded;
-    compressed.need32 = need32;
-
-           // Serialize and compress using lzma
-    std::string filename = compressed_dir + "compressed-wavelet-" +
-                           std::to_string(time) + "-" + std::to_string(level) +
-                           "-" + std::to_string(box_index) + ".xz";
-
-    std::ofstream file(filename, std::ios::binary);
-    if (file.is_open()) {
-        std::string serialized = serialize_compressed_wavelet(compressed);
-
-        lzma_stream strm = LZMA_STREAM_INIT;
-        lzma_ret    ret  = lzma_easy_encoder(
-            &strm, 6 /* compression level */, LZMA_CHECK_CRC64);
-        if (ret != LZMA_OK) {
-            spdlog::error("Failed to initialize LZMA encoder: {}");
-            exit(EXIT_FAILURE);
-        }
-
-               // Input
-        strm.next_in  = reinterpret_cast<const uint8_t*>(serialized.data());
-        strm.avail_in = serialized.size();
-
-               // Output buffer (reserve slightly more than input)
-        std::vector<uint8_t> outbuf(serialized.size() * 1.1 +
-                                    128); // +128 safety
-        strm.next_out  = outbuf.data();
-        strm.avail_out = outbuf.size();
-
-               // Compress
-        ret = lzma_code(&strm, LZMA_FINISH);
-        if (ret != LZMA_STREAM_END) {
-            // This should be fatal
-            spdlog::error("LZMA compression failed: {}");
-            exit(EXIT_FAILURE);
-        }
-
-        lzma_end(&strm);
-
-               // Write compressed data
-        file.write(reinterpret_cast<const char*>(outbuf.data()),
-                   outbuf.size() - strm.avail_out);
-        file.close();
-    }
-
-    return compressed;
 }
 

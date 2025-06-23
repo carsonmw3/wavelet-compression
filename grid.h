@@ -45,6 +45,13 @@ public:
         return ret;
     }
 
+    bool is_valid() const {
+        return m_data.size() == m_width * m_height * m_depth;
+    }
+    size_t data_size() const {
+        return m_data.size();
+    }
+
     T const& get(size_t x, size_t y, size_t z) const {
         return m_data[index(x, y, z)];
     }
