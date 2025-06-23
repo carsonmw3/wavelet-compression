@@ -55,4 +55,5 @@ target_link_libraries(wavelet-compression-tests PRIVATE
 # Link filesystem library explicitly if needed (GCC <= 8)
 if (CMAKE_COMPILER_IS_GNUCXX)
     target_link_libraries(wavelet-compression PRIVATE stdc++fs)
+    target_link_libraries(wavelet-compression-tests PRIVATE stdc++fs)
 endif()
