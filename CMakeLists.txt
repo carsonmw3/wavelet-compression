@@ -9,7 +9,7 @@ project(wavelet-compression LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(wavelet-compression main.cpp
+set(SOURCES
     grid.h
     preprocess.cpp
     preprocess.h
@@ -23,9 +23,14 @@ add_executable(wavelet-compression main.cpp
     calc-loss.cpp
     calc-loss.h
     writeplotfile.cpp
-    writeplotfile.h)
+    writeplotfile.h
+)
 
-add_executable(wavelet-compression-tests test.cpp)
+add_executable(wavelet-compression main.cpp ${SOURCES})
+
+target_compile_definitions(wavelet-compression PRIVATE DOCTEST_CONFIG_DISABLE)
+
+add_executable(wavelet-compression-tests test.cpp ${SOURCES})
 
 include(GNUInstallDirs)
 install(TARGETS wavelet-compression

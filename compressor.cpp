@@ -1,36 +1,53 @@
 #include "compressor.h"
 
+#include <doctest/doctest.h>
+
 #include <lzma.h>
+
 #include <spdlog/spdlog.h>
 
-#include <fstream>
-#include <string>
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <algorithm>
+#include <fstream>
+#include <string>
 
-static std::vector<std::pair<int, float>> rle_encode(std::vector<bool>    mask,
-                                                       std::vector<float> values) {
+static std::vector<std::pair<int, float>>
+rle_encode(std::vector<bool> const& mask, std::vector<float> const& values) {
 
     std::vector<std::pair<int, float>> rle;
-    int                                  run_length = 0;
-    int                                  val_idx    = 0;
+    int                                run_length = 0;
+    int                                val_idx    = 0;
 
     for (bool keep : mask) {
-
         if (keep) {
-
             rle.emplace_back(run_length, values[val_idx]);
             run_length = 0;
             val_idx++;
-
         } else {
-
             run_length++;
         }
     }
 
     return rle;
+}
+
+TEST_CASE("RLE Encode") {
+    auto values = std::vector<float> { 1.0, 2.0, 3.0, 4.0, 5.0 };
+    auto mask   = std::vector<bool> { true, true, false, false, true };
+    auto truth  = std::vector<std::pair<int, float>> {
+        { 0, 1.0 },
+        { 0, 2.0 },
+        { 2, 3.0 },
+    };
+
+    auto to_check = rle_encode(mask, values);
+
+    // INFO("HERE ", to_check.at(0).second);
+    // INFO("HERE ", to_check.at(1).second);
+    // INFO("HERE ", to_check.at(2).second);
+
+    REQUIRE(to_check == truth);
 }
 
 
@@ -65,7 +82,7 @@ static std::vector<double> wavelet_decompose(Box3D const& box) {
     Box3D               temp = box.clone();
     std::vector<double> flat;
 
-           // Decompose along Z
+    // Decompose along Z
     for (int i = 0; i < x; ++i) {
         for (int j = 0; j < y; ++j) {
             std::vector<double> row(z);
@@ -90,7 +107,7 @@ static std::vector<double> wavelet_decompose(Box3D const& box) {
         }
     }
 
-           // Repeat for Y
+    // Repeat for Y
     for (int i = 0; i < x; ++i) {
         for (int k = 0; k < z; ++k) {
             std::vector<double> col(y);
@@ -115,7 +132,7 @@ static std::vector<double> wavelet_decompose(Box3D const& box) {
         }
     }
 
-           // Repeat for X
+    // Repeat for X
     for (int j = 0; j < y; ++j) {
         for (int k = 0; k < z; ++k) {
             std::vector<double> depth(x);
@@ -140,7 +157,7 @@ static std::vector<double> wavelet_decompose(Box3D const& box) {
         }
     }
 
-           // Flatten result
+    // Flatten result
     for (int i = 0; i < x; ++i)
         for (int j = 0; j < y; ++j)
             for (int k = 0; k < z; ++k)
@@ -151,14 +168,14 @@ static std::vector<double> wavelet_decompose(Box3D const& box) {
 
 
 void compress(multiBox3D&      box,
-                           std::vector<int> components,
-                           double           keep,
-                           int              time,
-                           int              level,
-                           int              box_index,
-                           std::string      compressed_dir) {
+              std::vector<int> components,
+              double           keep,
+              int              time,
+              int              level,
+              int              box_index,
+              std::string      compressed_dir) {
 
-    for (int c = 0; c < components.size(); c++){
+    for (int c = 0; c < components.size(); c++) {
 
         Box3D comp_box = box[c].clone();
 
@@ -166,10 +183,10 @@ void compress(multiBox3D&      box,
         std::vector<double> flat_coeffs = wavelet_decompose(comp_box);
 
         // Thresholding
-        double max_val =
-            *std::max_element(flat_coeffs.begin(),
-                              flat_coeffs.end(),
-                              [](double a, double b) { return std::abs(a) < std::abs(b); });
+        double max_val = *std::max_element(
+            flat_coeffs.begin(), flat_coeffs.end(), [](double a, double b) {
+                return std::abs(a) < std::abs(b);
+            });
         double thresh = max_val * (1 - keep);
 
         // TODO: store 16bits if possible? If so, need to write
@@ -181,31 +198,31 @@ void compress(multiBox3D&      box,
             bool keep_val = std::abs(val) > thresh;
             mask.push_back(keep_val);
             if (keep_val) {
-                if (std::abs(val) > INT16_MAX) {
-                    need32 = true;
-                }
+                if (std::abs(val) > INT16_MAX) { need32 = true; }
                 values.push_back(static_cast<float>(val));
-                // values.push_back(static_cast<float>(round(val * 1000.0) / 1000));
+                // values.push_back(static_cast<float>(round(val * 1000.0) /
+                // 1000));
             }
         }
 
-               // RLE encode
-        std::vector<std::pair<int, float>> rle_encoded = rle_encode(mask, values);
+        // RLE encode
+        std::vector<std::pair<int, float>> rle_encoded =
+            rle_encode(mask, values);
 
-               // Create compressed structure
+        // Create compressed structure
         CompressedWavelet compressed;
         compressed.shape       = { static_cast<int>(comp_box.width()),
                                    static_cast<int>(comp_box.height()),
                                    static_cast<int>(comp_box.depth()) };
         compressed.coeff_shape = { static_cast<int>(flat_coeffs.size()) };
         compressed.rle_encoded = rle_encoded;
-        compressed.need32 = need32;
+        compressed.need32      = need32;
 
-               // Serialize and compress using lzma
-        std::string filename = compressed_dir + "compressed-wavelet-" +
-                               std::to_string(time) + "-" + std::to_string(level) +
-                               "-" + std::to_string(components[c]) + "-" +
-                               std::to_string(box_index) + ".xz";
+        // Serialize and compress using lzma
+        std::string filename =
+            compressed_dir + "compressed-wavelet-" + std::to_string(time) +
+            "-" + std::to_string(level) + "-" + std::to_string(components[c]) +
+            "-" + std::to_string(box_index) + ".xz";
 
         std::ofstream file(filename, std::ios::binary);
         if (file.is_open()) {
@@ -219,17 +236,17 @@ void compress(multiBox3D&      box,
                 exit(EXIT_FAILURE);
             }
 
-                   // Input
+            // Input
             strm.next_in  = reinterpret_cast<const uint8_t*>(serialized.data());
             strm.avail_in = serialized.size();
 
-                   // Output buffer (reserve slightly more than input)
+            // Output buffer (reserve slightly more than input)
             std::vector<uint8_t> outbuf(serialized.size() * 1.1 +
                                         128); // +128 safety
             strm.next_out  = outbuf.data();
             strm.avail_out = outbuf.size();
 
-                   // Compress
+            // Compress
             ret = lzma_code(&strm, LZMA_FINISH);
             if (ret != LZMA_STREAM_END) {
                 // This should be fatal
@@ -239,13 +256,10 @@ void compress(multiBox3D&      box,
 
             lzma_end(&strm);
 
-                   // Write compressed data
+            // Write compressed data
             file.write(reinterpret_cast<const char*>(outbuf.data()),
                        outbuf.size() - strm.avail_out);
             file.close();
         }
-
-
     }
 }
-
