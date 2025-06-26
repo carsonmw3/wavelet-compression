@@ -20,14 +20,6 @@ src  : https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz
 options :
     BUILD_SHARED_LIBS OFF
 
-- zstd
-type : cmake
-src  : https://github.com/facebook/zstd/archive/refs/tags/v1.5.0.tar.gz
-options :
-    ZSTD_BUILD_PROGRAMS OFF
-    ZSTD_BUILD_TESTS OFF
-    ZSTD_BUILD_SHARED OFF
-
 - xz
 type : cmake
 src  : https://github.com/tukaani-project/xz/releases/download/v5.8.1/xz-5.8.1.tar.gz
@@ -36,12 +28,6 @@ options :
     XZ_TOOL_LZMADEC OFF
     XZ_TOOL_SCRIPTS OFF
     XZ_TOOL_XZ OFF
-
-- toml
-type : cmake
-src  : https://github.com/ToruNiina/toml11/archive/refs/tags/v3.7.1.tar.gz
-options :
-    CMAKE_CXX_STANDARD 11
 
 - spdlog
 type : cmake

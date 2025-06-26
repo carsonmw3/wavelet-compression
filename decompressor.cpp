@@ -28,7 +28,7 @@ static std::vector<float> rle_decode(std::vector<std::pair<int, float>> rle_enco
 }
 
 
-static CompressedWavelet deserialize_compressed_wavelet(const std::string& data) {
+CompressedWavelet deserialize_compressed_wavelet(const std::string& data) {
     CompressedWavelet compressed;
     const char*       ptr = data.data(); // Pointer to start of binary data
 
@@ -74,7 +74,7 @@ static CompressedWavelet deserialize_compressed_wavelet(const std::string& data)
 }
 
 
-static Box3D inverse_wavelet_decompose(std::vector<float> flat, int x, int y, int z) {
+Box3D inverse_wavelet_decompose(std::vector<float> flat, int x, int y, int z) {
     // Step 1: reshape the flat array into a 3D volume
     Box3D temp(x, y, z);
 
@@ -241,4 +241,3 @@ Box3D decompress (std::string file_path,
 
     return regen_box;
 }
-

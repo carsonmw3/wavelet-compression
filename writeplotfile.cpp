@@ -1,6 +1,10 @@
 #include "writeplotfile.h"
 
 #include <spdlog/spdlog.h>
+#include <doctest/doctest.h>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 
 #include <AMReX_MultiFab.H>
 #include <AMReX_BoxList.H>
@@ -98,7 +102,6 @@ static void populateMF (amrex::MultiFab&         multi,
 }
 
 
-// TODO: generalize output parameters
 void write_plotfiles(std::vector<std::vector<std::vector<multiBox3D>>> &data,
                      LocDimData                                   locations,
                      LocDimData                                   dimensions,
@@ -185,3 +188,158 @@ void write_plotfiles(std::vector<std::vector<std::vector<multiBox3D>>> &data,
 
 }
 
+
+static bool files_are_identical(const std::string& file1, const std::string& file2) {
+    std::ifstream f1(file1, std::ios::binary);
+    std::ifstream f2(file2, std::ios::binary);
+
+    if (!f1.is_open() || !f2.is_open()) return false;
+
+    std::istreambuf_iterator<char> begin1(f1), end1;
+    std::istreambuf_iterator<char> begin2(f2), end2;
+
+    return std::equal(begin1, end1, begin2, end2);
+}
+
+
+
+TEST_CASE("Initialize, populate MultiFab") {
+
+    int argc = 1;
+    const char* arg0 = "testprog";
+    char* argv0 = const_cast<char*>(arg0);
+    char** argv = &argv0;
+
+    amrex::Initialize(argc, argv);
+
+    std::vector<Location>   test_locs      = { { 0, 0, 0 },
+                                               { 16, 32, 64 } };
+    std::vector<Dimensions> test_dims      = { { 16, 32, 64 },
+                                               { 8, 4, 2 } };
+    int                     num_components = 2;
+
+    amrex::MultiFab test = initializeMF(test_locs, test_dims, num_components);
+
+    REQUIRE(test.size() == test_locs.size());
+
+    REQUIRE(test.isDefined());
+
+    Box3D testbox1(16, 32, 64, 3902.4f);
+    Box3D testbox2(8, 4, 2, 16.00f);
+
+    multiBox3D test1;
+    test1.push_back(testbox1.clone());
+    test1.push_back(testbox1.clone());
+    multiBox3D test2;
+    test2.push_back(testbox2.clone());
+    test2.push_back(testbox2.clone());
+    std::vector<multiBox3D> testboxes;
+    testboxes.push_back(std::move(test1));
+    testboxes.push_back(std::move(test2));
+
+    populateMF(test, testboxes, num_components);
+    INFO("num boxes" << test.size());
+
+    REQUIRE(test.size() == 2);
+
+    amrex::Array4<amrex::Real> data1 = test.array(0);
+    amrex::Array4<amrex::Real> data2 = test.array(1);
+
+    const amrex::Box& box0 = test.boxArray()[0];
+    const amrex::Box& box1 = test.boxArray()[1];
+
+    auto lo0 = lbound(box0);
+    auto lo1 = lbound(box1);
+
+    float val1 = data1(lo0.x + 5, lo0.y + 10, lo0.z + 20, 0);
+    float val2 = data2(lo1.x + 1, lo1.y + 1, lo1.z + 0, 1);
+
+    REQUIRE(val1 == doctest::Approx(3902.4f).epsilon(0.001));
+    REQUIRE(val2 == doctest::Approx(16.00f).epsilon(0.001));
+
+    test.clear();
+
+    amrex::Finalize();
+
+}
+
+
+TEST_CASE("Writing plotfiles") {
+
+
+    int argc = 1;
+    const char* arg0 = "testprog";
+    char* argv0 = const_cast<char*>(arg0);
+    char** argv = &argv0;
+
+    amrex::Initialize(argc, argv);
+
+    std::vector<Location>   test_locs      = { { 0, 0, 0 },
+                                               { 16, 32, 64 } };
+    std::vector<Dimensions> test_dims      = { { 16, 32, 64 },
+                                               { 8, 4, 2 } };
+    int                     num_components = 2;
+    int                     num_times      = 2;
+    int                     num_levels     = 2;
+
+    Box3D testbox1(16, 32, 64, 3902.4f);
+    Box3D testbox2(8, 4, 2, 16.00f);
+
+    std::vector<std::vector<std::vector<multiBox3D>>> testdata;
+    LocDimData locs;
+    LocDimData dims;
+    for (int i=0; i < num_times; i++) {
+
+        std::vector<std::vector<multiBox3D>> test4;
+        std::vector<std::vector<Location>> veclocs;
+        std::vector<std::vector<Dimensions>> vecdims;
+        for (int i=0; i < num_levels; i++) {
+
+            multiBox3D test1;
+            multiBox3D test2;
+
+            for (int i=0; i < num_components; i++) {
+                test1.push_back(testbox1.clone());
+                test2.push_back(testbox2.clone());
+            }
+
+            std::vector<multiBox3D> test3;
+            test3.push_back(std::move(test1));
+            test3.push_back(std::move(test2));
+
+            test4.push_back(std::move(test3));
+            veclocs.push_back(test_locs);
+            vecdims.push_back(test_dims);
+        }
+
+        testdata.push_back(std::move(test4));
+        locs.push_back(veclocs);
+        dims.push_back(vecdims);
+    }
+
+    AMReXInfo info;
+
+    info.comp_names = { "temp", "pressure" };
+    info.geomcellinfo = { {0.6, 0.5, 0.4, 0.8, 0.9, 1.0},
+                          {0.6, 0.5, 0.4, 0.8, 0.9, 1.0} };
+    info.ref_ratios = { 2, 2, 2 };
+    info.true_times = { 0.2219392, 0.3874982 } ;
+    info.level_steps = { {1200, 1500}, {1800, 2000} };
+    info.xDim = 256;
+    info.yDim = 512;
+    info.zDim = 256;
+
+    write_plotfiles(testdata,
+                    locs,
+                    dims,
+                    num_times,
+                    num_levels,
+                    num_components,
+                    info,
+                    std::filesystem::temp_directory_path());
+
+    REQUIRE(files_are_identical("../tests/plt00074/", std::filesystem::temp_directory_path() / "plt00074/"));
+
+    amrex::Finalize();
+
+}

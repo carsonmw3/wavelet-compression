@@ -85,6 +85,21 @@ public:
             }
         }
     }
+
+    bool equals(const Grid3D<T>& other, float error) const {
+        if (m_width != other.m_width ||
+            m_height != other.m_height ||
+            m_depth != other.m_depth) {
+            return false;
+        }
+        for (int i=0; i < m_data.size(); i++) {
+            auto value = std::abs(m_data[i] - other.m_data[i]);
+            if (value > error) {
+                return false;
+            }
+        }
+        return true;
+    }
 };
 
 template <class T>
@@ -123,4 +138,3 @@ public:
     size_t width() const { return m_width; }
     size_t height() const { return m_height; }
 };
-

@@ -1,6 +1,7 @@
 #include "preprocess.h"
 
 #include <spdlog/spdlog.h>
+#include <doctest/doctest.h>
 
 #include <AMReX.H>
 #include <AMReX_MultiFab.H>
@@ -9,10 +10,6 @@
 #include <AMReX_MFIter.H>
 
 
-// Reads input data and stores it in a vector where the first dimension is the
-// number of chunks of data (boxes), and each entry is a vector of floats where
-// the first three are the location of the box, the next three are the dimensions of
-// the box, and the rest is the data itself in order x, y, z.
 static LevelData collectDataNewFormat (std::string      lev_file,
                                        std::vector<int> components) {
 
@@ -95,7 +92,6 @@ static LevelData collectDataNewFormat (std::string      lev_file,
 }
 
 
-// TODO: add multi-component support
 AllData preprocess_data(std::vector<std::string> files,
                         std::vector<int>         components,
                         std::vector<int>         levels) {
@@ -287,5 +283,73 @@ AllData preprocess_data(std::vector<std::string> files,
 }
 
 
+
+TEST_CASE("Preprocessing") {
+
+    int argc = 1;
+    const char* arg0 = "testprog";
+    char* argv0 = const_cast<char*>(arg0);
+    char** argv = &argv0;
+
+    amrex::Initialize(argc, argv);
+
+    std::vector<std::string> files      = {"../tests/plt00074",
+                                           "../tests/plt00075"};
+    std::vector<int>         components = {0, 1};
+    std::vector<int>         levels     = {0, 1};
+
+    AllData test = preprocess_data(files, components, levels);
+
+    Box3D testbox1(16, 32, 64, 3902.4f);
+    Box3D testbox2(8, 4, 2, 16.00f);
+    std::vector<Location>   test_locs      = { { 0, 0, 0 },
+                                          { 16, 32, 64 } };
+    std::vector<Dimensions> test_dims      = { { 16, 32, 64 },
+                                          { 8, 4, 2 } };
+
+    REQUIRE(testbox1.equals(test.boxes[0][1][0][0], 0));
+    REQUIRE(testbox2.equals(test.boxes[1][0][1][1], 0));
+
+    REQUIRE(test.locations[0][0][0] == test_locs[0]);
+    REQUIRE(test.locations[1][1][1] == test_locs[1]);
+
+    REQUIRE(test.dimensions[0][1][0] == test_dims[0]);
+    REQUIRE(test.dimensions[1][0][1] == test_dims[1]);
+
+    std::vector<std::vector<int>> expected_counts = { { 2, 2 },
+                                                      { 2, 2 } };
+
+    REQUIRE(test.box_counts == expected_counts);
+
+    std::vector<float> expected_mins  = { 16.00f, 16.00f };
+    std::vector<float> expected_maxes = { 3902.4f, 3902.4f };
+
+    REQUIRE(test.min_values == expected_mins);
+    REQUIRE(test.max_values == expected_maxes);
+
+    AMReXInfo expected_info;
+
+    expected_info.comp_names = { "temp", "pressure" };
+    expected_info.geomcellinfo = { {0.6, 0.5, 0.4, 0.8, 0.9, 1.0},
+                          {0.6, 0.5, 0.4, 0.8, 0.9, 1.0} };
+    expected_info.ref_ratios = { 2, 2, 2 };
+    expected_info.true_times = { 0.2219392, 0.3874982 } ;
+    expected_info.level_steps = { {1200, 1500}, {1800, 2000} };
+    expected_info.xDim = 256;
+    expected_info.yDim = 512;
+    expected_info.zDim = 256;
+
+    REQUIRE(test.amrexinfo.comp_names == expected_info.comp_names);
+    REQUIRE(test.amrexinfo.geomcellinfo == expected_info.geomcellinfo);
+    REQUIRE(test.amrexinfo.ref_ratios == expected_info.ref_ratios);
+    REQUIRE(test.amrexinfo.true_times == expected_info.true_times);
+    REQUIRE(test.amrexinfo.level_steps == expected_info.level_steps);
+    REQUIRE(test.amrexinfo.xDim == expected_info.xDim);
+    REQUIRE(test.amrexinfo.yDim == expected_info.yDim);
+    REQUIRE(test.amrexinfo.zDim == expected_info.zDim);
+
+    amrex::Finalize();
+
+};
 
 

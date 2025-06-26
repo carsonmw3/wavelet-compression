@@ -37,3 +37,9 @@ void write_box_with_loc_dim(Volume3D           volume,
                             std::vector<float> location,
                             std::vector<float> dimension);
 
+void write_amrexinfo(AMReXInfo   info,
+                     std::string path,
+                     std::string out_file);
+
+AMReXInfo read_amrex_info(std::string path,
+                          std::string in_file);

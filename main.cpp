@@ -8,6 +8,8 @@
 
 #include <spdlog/spdlog.h>
 #include <chrono>
+#include <doctest/doctest.h>
+#include <filesystem>
 
 #include <AMReX.H>
 #include <AMReX_ParmParse.H>
@@ -85,6 +87,10 @@ int main(int argc, char* argv[]) {
                      num_times,
                      num_levels);
 
+    write_amrexinfo(amrexinfo,
+                    compressed_dir,
+                    "amrexinfo.raw");
+
     auto end      = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration<double>(end - start).count();
     spdlog::info(
@@ -151,12 +157,14 @@ int main(int argc, char* argv[]) {
     spdlog::info("Decompression completed in {} seconds. Calculating loss...",
                  duration2);
 
+    AMReXInfo amrexinfo_read = read_amrex_info(compressed_dir,
+                                               "amrexinfo.raw");
 
     std::vector<double> rmses = calc_avg_rmse(boxes, regen_boxes, num_components);
     for (int c = 0; c < num_components; c++) {
-        spdlog::info("RMSE, {} = {}", amrexinfo.comp_names[c], rmses[c]);
+        spdlog::info("RMSE, {} = {}", amrexinfo_read.comp_names[c], rmses[c]);
         double loss = calc_adj_loss(rmses[c], max_values[c]-min_values[c]);
-        spdlog::info("Adjusted loss, {} = {}", amrexinfo.comp_names[c], loss);
+        spdlog::info("Adjusted loss, {} = {}", amrexinfo_read.comp_names[c], loss);
     }
 
     LocDimData locs_read = read_loc_dim_from_bin(compressed_dir,
@@ -177,7 +185,7 @@ int main(int argc, char* argv[]) {
                     num_times,
                     num_levels,
                     num_components,
-                    amrexinfo,
+                    amrexinfo_read,
                     "../../regenerated-plotfiles/");
 
     spdlog::info("Sucessfully wrote plotfiles.");
