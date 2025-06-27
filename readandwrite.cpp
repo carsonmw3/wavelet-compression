@@ -203,25 +203,16 @@ static std::ifstream open_read(std::string path, std::string infile) {
 void write_loc_dim_to_bin(LocDimData  data,
                           std::string path,
                           std::string out_file,
-                          int         num_times,
-                          int         num_levels) {
+                          AMRIterator iterator) {
 
     std::ofstream file = open_write(path, out_file);
 
-    for (int t = 0; t < num_times; t++) {
-
-        for (int lev = 0; lev < num_levels; lev++) {
-
-            for (int box_idx = 0; box_idx < data[t][lev].size(); box_idx++) {
-
-                for (int coord = 0; coord < 3; coord++) {
-
-                    float value = data[t][lev][box_idx][coord];
-                    write_float(file, value);
-                }
-            }
+    iterator.iterate([&](int t, int lev, int box_idx) {
+        for (int coord = 0; coord < 3; coord++) {
+            float value = data[t][lev][box_idx][coord];
+            write_float(file, value);
         }
-    }
+    });
 
     file.close();
 }
@@ -231,42 +222,22 @@ void write_loc_dim_to_bin(LocDimData  data,
 LocDimData read_loc_dim_from_bin(std::string const&            path,
                                  std::string const&            in_file,
                                  std::vector<std::vector<int>> counts,
-                                 int                           num_times,
-                                 int                           num_levels) {
+                                 AMRIterator                   iterator,
+                                                               int num_times,
+                                                               int num_levels) {
 
     std::ifstream file = open_read(path, in_file);
 
-    LocDimData out;
+    LocDimData out(num_times, std::vector<std::vector<std::vector<int>>>(num_levels));
 
-    for (int t = 0; t < num_times; t++) {
-        std::vector<std::vector<std::vector<int>>> out_t;
-
-        for (int lev = 0; lev < num_levels; lev++) {
-            std::vector<std::vector<int>> out_l;
-            if (t >= counts.size()) {
-                throw std::runtime_error("Time index out of bounds in counts vector");
-            }
-            if (lev >= counts[t].size()) {
-                throw std::runtime_error("Level index out of bounds in counts vector");
-            }
-            int                           curr_num_boxes = counts[t][lev];
-
-            for (int box_idx = 0; box_idx < curr_num_boxes; box_idx++) {
-                std::vector<int> current_coords;
-
-                for (int coord = 0; coord < 3; coord++) {
-                    float value = read_float(file);
-                    current_coords.push_back(value);
-                }
-
-                out_l.push_back(current_coords);
-            }
-
-            out_t.push_back(out_l);
+    iterator.iterate([&](int t, int lev, int box_idx) {
+        std::vector<int> current_coords;
+        for (int coord = 0; coord < 3; ++coord) {
+            float value = read_float(file);
+            current_coords.push_back(value);
         }
-
-        out.push_back(out_t);
-    }
+        out[t][lev].push_back(std::move(current_coords));
+    });
 
     file.close();
     return out;
@@ -404,8 +375,10 @@ TEST_CASE("Read/write Loc/Dim data") {
 
     std::string temp_dir = std::filesystem::temp_directory_path();
 
-    write_loc_dim_to_bin(test, temp_dir, "test.raw", 2, 2);
-    LocDimData result = read_loc_dim_from_bin(temp_dir, "test.raw", { { 1, 1 }, { 1, 1 } }, 2, 2);
+    AMRIterator iterator(2, 2, {{ 1, 1 }, { 1, 1 }}, 1);
+
+    write_loc_dim_to_bin(test, temp_dir, "test.raw", iterator);
+    LocDimData result = read_loc_dim_from_bin(temp_dir, "test.raw", { { 1, 1 }, { 1, 1 } }, iterator, 2, 2);
 
     REQUIRE(result == test);
 

@@ -73,16 +73,16 @@ int main(int argc, char* argv[]) {
     auto& max_values  = data.max_values;
     auto& amrexinfo   = data.amrexinfo;
 
+    AMRIterator iterator(num_times, num_levels, box_counts, num_components);
+
     write_loc_dim_to_bin(locations,
                          compressed_dir,
                          "locations.raw",
-                         num_times,
-                         num_levels);
+                         iterator);
     write_loc_dim_to_bin(dimensions,
                          compressed_dir,
                          "dimensions.raw",
-                         num_times,
-                         num_levels);
+                         iterator);
     write_box_counts(box_counts,
                      compressed_dir,
                      "boxcounts.raw",
@@ -100,8 +100,6 @@ int main(int argc, char* argv[]) {
         duration);
 
     auto start1 = std::chrono::high_resolution_clock::now();
-
-    AMRIterator iterator(num_times, num_levels, box_counts);
 
     iterator.iterate([&](int t, int lev, int box_idx) {
         multiBox3D& current_box = boxes[t][lev][box_idx];
@@ -181,12 +179,14 @@ int main(int argc, char* argv[]) {
     LocDimData locs_read = read_loc_dim_from_bin(compressed_dir,
                                                  "locations.raw",
                                                  counts_read,
+                                                 iterator,
                                                  num_times,
                                                  num_levels);
 
     LocDimData dims_read = read_loc_dim_from_bin(compressed_dir,
                                                  "dimensions.raw",
                                                  counts_read,
+                                                 iterator,
                                                  num_times,
                                                  num_levels);
 

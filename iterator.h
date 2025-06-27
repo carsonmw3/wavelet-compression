@@ -8,15 +8,18 @@ private:
     size_t                        num_times;
     size_t                        num_levels;
     std::vector<std::vector<int>> box_counts;
+    size_t                        num_components;
 
 public:
     // Constructor
     AMRIterator(size_t                        num_times,
                 size_t                        num_levels,
-                std::vector<std::vector<int>> box_counts)
+                std::vector<std::vector<int>> box_counts,
+                size_t                        num_components)
         : num_times(num_times),
           num_levels(num_levels),
-          box_counts(box_counts) { }
+          box_counts(box_counts),
+          num_components(num_components) { }
 
     template <class Function>
     void iterate(Function function) {

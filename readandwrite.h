@@ -1,6 +1,7 @@
 #pragma once
 
 #include "box-structs.h"
+#include "iterator.h"
 
 // TODO: If you are repeating parameters or code more than two-ish times,
 // that typically means you'll want to extract them into a struct
@@ -8,13 +9,13 @@
 void write_loc_dim_to_bin(LocDimData  data,
                           std::string path,
                           std::string out_file,
-                          int         num_times,
-                          int         num_levels);
+                          AMRIterator iterator);
 
 
 LocDimData read_loc_dim_from_bin(std::string const&            path,
                                  std::string const&            in_file,
                                  std::vector<std::vector<int>> counts,
+                                 AMRIterator                   iterator,
                                  int                           num_times,
                                  int                           num_levels);
 
