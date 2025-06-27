@@ -25,6 +25,8 @@ set(SOURCES
     writeplotfile.cpp
     writeplotfile.h
     iterator.h
+    argparse.cpp
+    argparse.h
 )
 
 add_executable(wavelet-compression main.cpp ${SOURCES})
