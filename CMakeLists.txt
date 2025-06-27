@@ -24,6 +24,7 @@ set(SOURCES
     calc-loss.h
     writeplotfile.cpp
     writeplotfile.h
+    iterator.h
 )
 
 add_executable(wavelet-compression main.cpp ${SOURCES})

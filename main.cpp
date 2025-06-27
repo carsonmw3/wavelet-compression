@@ -5,7 +5,9 @@
 #include "decompressor.h"
 #include "calc-loss.h"
 #include "writeplotfile.h"
+#include "iterator.h"
 
+#include <numeric>
 #include <spdlog/spdlog.h>
 #include <chrono>
 #include <doctest/doctest.h>
@@ -99,16 +101,12 @@ int main(int argc, char* argv[]) {
 
     auto start1 = std::chrono::high_resolution_clock::now();
 
-    for (int t = 0; t <= max_time - min_time; t++) {
-        for (int lev = 0; lev <= max_level - min_level; lev++) {
-            for (int box_idx = 0; box_idx < boxes[t][lev].size(); box_idx++) {
+    AMRIterator iterator(num_times, num_levels, box_counts);
 
-                multiBox3D& current_box = boxes[t][lev][box_idx];
-                compress(
-                    current_box, components, keep, t, lev, box_idx, compressed_dir);
-            }
-        }
-    }
+    iterator.iterate([&](int t, int lev, int box_idx) {
+        multiBox3D& current_box = boxes[t][lev][box_idx];
+        compress(current_box, components, keep, t, lev, box_idx, compressed_dir);
+    });
 
     auto end1      = std::chrono::high_resolution_clock::now();
     auto duration1 = std::chrono::duration<double>(end1 - start1).count();
@@ -124,33 +122,27 @@ int main(int argc, char* argv[]) {
 
     std::vector<std::vector<std::vector<multiBox3D>>> regen_boxes;
 
-    for (int t = 0; t <= max_time - min_time; t++) {
-        std::vector<std::vector<multiBox3D>> regen_boxes_t;
-        for (int lev = 0; lev <= max_level - min_level; lev++) {
-            std::vector<multiBox3D> regen_boxes_l;
-            for (int box_idx = 0; box_idx < boxes[t][lev].size(); box_idx++) {
-
-                multiBox3D multibox;
-
-                for (int component : components) {
-
-                    std::string file_path = compressed_dir + "compressed-wavelet-" +
-                                            std::to_string(t) + "-" +
-                                            std::to_string(lev) + "-" +
-                                            std::to_string(component) + "-" +
-                                            std::to_string(box_idx) + ".xz";
-
-                    Box3D curr_box = decompress(file_path, t, lev, component, box_idx);
-
-                    multibox.push_back(std::move(curr_box));
-
-                }
-                regen_boxes_l.push_back(std::move(multibox));
-            }
-            regen_boxes_t.push_back(std::move(regen_boxes_l));
-        }
-        regen_boxes.push_back(std::move(regen_boxes_t));
+    regen_boxes.resize(num_times);
+    for (int t = 0; t < num_times; ++t) {
+        regen_boxes[t].resize(num_levels);
     }
+
+    iterator.iterate([&](int t, int lev, int box_idx) {
+        if (regen_boxes[t][lev].size() == 0)
+            regen_boxes[t][lev].resize(box_counts[t][lev]);
+
+        multiBox3D multibox;
+        for (int component : components) {
+            std::string file_path = compressed_dir + "compressed-wavelet-" +
+                                    std::to_string(t) + "-" +
+                                    std::to_string(lev) + "-" +
+                                    std::to_string(component) + "-" +
+                                    std::to_string(box_idx) + ".xz";
+            Box3D curr_box = decompress(file_path, t, lev, component, box_idx);
+            multibox.push_back(std::move(curr_box));
+        }
+        regen_boxes[t][lev][box_idx] = std::move(multibox);
+    });
 
     auto end2      = std::chrono::high_resolution_clock::now();
     auto duration2 = std::chrono::duration<double>(end2 - start2).count();
@@ -160,10 +152,29 @@ int main(int argc, char* argv[]) {
     AMReXInfo amrexinfo_read = read_amrex_info(compressed_dir,
                                                "amrexinfo.raw");
 
-    std::vector<double> rmses = calc_avg_rmse(boxes, regen_boxes, num_components);
-    for (int c = 0; c < num_components; c++) {
-        spdlog::info("RMSE, {} = {}", amrexinfo_read.comp_names[c], rmses[c]);
-        double loss = calc_adj_loss(rmses[c], max_values[c]-min_values[c]);
+
+
+    std::vector<std::vector<double>> all_rmses(num_components);
+
+    iterator.iterate([&](int t, int l, int b) {
+        const auto& actual = boxes[t][l][b];
+        const auto& regen  = regen_boxes[t][l][b];
+
+        std::vector<double> rmse = calc_rmse_per_box(actual, regen, num_components);
+
+        for (int c = 0; c < num_components; ++c) {
+            all_rmses[c].push_back(rmse[c]);
+        }
+    });
+
+    // Compute mean RMSE and adjusted loss
+    for (int c = 0; c < num_components; ++c) {
+        double mean_rmse = std::accumulate(all_rmses[c].begin(), all_rmses[c].end(), 0.0) /
+                           all_rmses[c].size();
+
+        spdlog::info("RMSE, {} = {}", amrexinfo_read.comp_names[c], mean_rmse);
+
+        double loss = calc_adj_loss(mean_rmse, max_values[c] - min_values[c]);
         spdlog::info("Adjusted loss, {} = {}", amrexinfo_read.comp_names[c], loss);
     }
 
