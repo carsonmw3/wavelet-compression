@@ -204,13 +204,15 @@ static std::vector<float> wavelet_decompose(Box3D const& box) {
 }
 
 
-void compress(multiBox3D&      box,
+std::vector<CompressedWavelet> compress(multiBox3D&      box,
               std::vector<int> components,
               double           keep,
               int              time,
               int              level,
               int              box_index,
               std::string      compressed_dir) {
+
+    std::vector<CompressedWavelet> out;
 
     for (int c = 0; c < components.size(); c++) {
 
@@ -298,7 +300,11 @@ void compress(multiBox3D&      box,
                        outbuf.size() - strm.avail_out);
             file.close();
         }
+
+        out.push_back(compressed);
     }
+
+    return out;
 }
 
 TEST_CASE("Serialization") {

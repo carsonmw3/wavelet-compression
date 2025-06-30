@@ -2,7 +2,7 @@
 
 #include "box-structs.h"
 
-void compress(multiBox3D&      box,
+std::vector<CompressedWavelet> compress(multiBox3D&      box,
                            std::vector<int> components,
                            double           keep,
                            int              time,

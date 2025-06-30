@@ -375,7 +375,9 @@ TEST_CASE("Read/write Loc/Dim data") {
 
     std::string temp_dir = std::filesystem::temp_directory_path();
 
-    AMRIterator iterator(2, 2, {{ 1, 1 }, { 1, 1 }}, 1);
+    std::vector<std::vector<int>> counts = {{1, 1}, {1, 1}};
+
+    AMRIterator iterator(2, 2, counts, 1);
 
     write_loc_dim_to_bin(test, temp_dir, "test.raw", iterator);
     LocDimData result = read_loc_dim_from_bin(temp_dir, "test.raw", { { 1, 1 }, { 1, 1 } }, iterator, 2, 2);

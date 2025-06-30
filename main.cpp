@@ -166,6 +166,93 @@ int decompress(const Config& cfg) {
 }
 
 
+int estimate(Config& cfg) {
+
+    int num_times = 1;
+    int num_levels = 1;
+    int num_components = cfg.components.size();
+    std::string compressed_dir = std::filesystem::temp_directory_path();
+
+    std::vector<std::string> files;
+    files.push_back(cfg.data_dir + "plt0" + std::to_string(cfg.min_time) + "00");
+
+    std::vector<int> levels;
+    levels.push_back(cfg.min_level);
+
+    AllData data = preprocess_data(files,
+                                   cfg.components,
+                                   levels);
+
+    auto& boxes       = data.boxes;
+    auto& locations   = data.locations;
+    auto& dimensions  = data.dimensions;
+    auto& box_counts  = data.box_counts;
+    auto& min_values  = data.min_values;
+    auto& max_values  = data.max_values;
+    auto& amrexinfo   = data.amrexinfo;
+
+    AMRIterator iterator(num_times, num_levels, box_counts, num_components);
+
+    iterator.iterate([&](int t, int lev, int box_idx) {
+        multiBox3D& current_box = boxes[t][lev][box_idx];
+        compress(current_box, cfg.components, cfg.keep, t, lev, box_idx, compressed_dir);
+    });
+
+    spdlog::info("Compression complete.");
+
+    std::vector<std::vector<std::vector<multiBox3D>>> regen_boxes;
+
+    regen_boxes.resize(num_times);
+    for (int t = 0; t < num_times; ++t) {
+        regen_boxes[t].resize(num_levels);
+    }
+
+    iterator.iterate([&](int t, int lev, int box_idx) {
+        if (regen_boxes[t][lev].size() == 0)
+            regen_boxes[t][lev].resize(box_counts[t][lev]);
+
+        multiBox3D multibox;
+        for (int component : cfg.components) {
+            std::string file_path = compressed_dir + "compressed-wavelet-" +
+                                    std::to_string(t) + "-" +
+                                    std::to_string(lev) + "-" +
+                                    std::to_string(component) + "-" +
+                                    std::to_string(box_idx) + ".xz";
+            Box3D curr_box = decompress(file_path, t, lev, component, box_idx);
+            multibox.push_back(std::move(curr_box));
+        }
+        regen_boxes[t][lev][box_idx] = std::move(multibox);
+    });
+
+    std::vector<std::vector<double>> all_rmses(num_components);
+
+    iterator.iterate([&](int t, int l, int b) {
+        const auto& actual = boxes[t][l][b];
+        const auto& regen  = regen_boxes[t][l][b];
+
+        std::vector<double> rmse = calc_rmse_per_box(actual, regen, num_components);
+
+        for (int c = 0; c < num_components; ++c) {
+            all_rmses[c].push_back(rmse[c]);
+        }
+    });
+
+    // Compute mean RMSE and adjusted loss
+    for (int c = 0; c < num_components; ++c) {
+        double mean_rmse = std::accumulate(all_rmses[c].begin(), all_rmses[c].end(), 0.0) /
+                            all_rmses[c].size();
+
+        spdlog::info("Predicted RMSE, {} = {}", amrexinfo.comp_names[c], mean_rmse);
+
+        double loss = calc_adj_loss(mean_rmse, max_values[c] - min_values[c]);
+        spdlog::info("Predicted Adjusted loss, {} = {}", amrexinfo.comp_names[c], loss);
+    }
+
+    return 0;
+
+}
+
+
 bool has_flag(int argc, char* argv[], const std::string& flag) {
     for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == flag) {
@@ -185,6 +272,8 @@ int main(int argc, char* argv[]) {
 
     if (has_flag(argc, argv, "-c")) {
         compress(cfg);
+    } else if (has_flag(argc, argv, "-estimate")) {
+        estimate(cfg);
     } else {
         decompress(cfg);
     }
