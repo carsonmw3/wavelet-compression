@@ -27,6 +27,7 @@ set(SOURCES
     iterator.h
     argparse.cpp
     argparse.h
+    tmpdir.h
 )
 
 add_executable(wavelet-compression main.cpp ${SOURCES})
