@@ -7,13 +7,14 @@
 #include "calc-loss.h"
 #include "writeplotfile.h"
 #include "iterator.h"
+#include "tmpdir.h"
 
 #include <numeric>
 #include <spdlog/spdlog.h>
 #include <chrono>
 #include <doctest/doctest.h>
 #include <filesystem>
-#include <iostream>
+#include <fstream>
 
 #include <AMReX.H>
 #include <AMReX_ParmParse.H>
@@ -172,8 +173,7 @@ int estimate(Config& cfg) {
     int num_times = 1;
     int num_levels = 1;
     int num_components = cfg.components.size();
-    std::string compressed_dir = "../tests/estimates/";
-    std::filesystem::create_directory(compressed_dir);
+    TempDir scratch_dir;
 
     std::vector<std::string> files;
     files.push_back(cfg.data_dir + "plt0" + std::to_string(cfg.min_time) + "00");
@@ -186,8 +186,6 @@ int estimate(Config& cfg) {
                                    levels);
 
     auto& boxes       = data.boxes;
-    auto& locations   = data.locations;
-    auto& dimensions  = data.dimensions;
     auto& box_counts  = data.box_counts;
     auto& min_values  = data.min_values;
     auto& max_values  = data.max_values;
@@ -197,7 +195,7 @@ int estimate(Config& cfg) {
 
     iterator.iterate([&](int t, int lev, int box_idx) {
         multiBox3D& current_box = boxes[t][lev][box_idx];
-        compress(current_box, cfg.components, cfg.keep, t, lev, box_idx, compressed_dir);
+        compress(current_box, cfg.components, cfg.keep, t, lev, box_idx, scratch_dir.path());
     });
 
     spdlog::info("Compression complete.");
@@ -215,11 +213,11 @@ int estimate(Config& cfg) {
 
         multiBox3D multibox;
         for (int component : cfg.components) {
-            std::string file_path = compressed_dir + "compressed-wavelet-" +
-                                    std::to_string(t) + "-" +
-                                    std::to_string(lev) + "-" +
-                                    std::to_string(component) + "-" +
-                                    std::to_string(box_idx) + ".xz";
+            std::filesystem::path file_path = scratch_dir.path() /
+                                              ("compressed-wavelet-" + std::to_string(t) + "-" +
+                                               std::to_string(lev) + "-" +
+                                               std::to_string(component) + "-" +
+                                               std::to_string(box_idx) + ".xz");
             Box3D curr_box = decompress(file_path, t, lev, component, box_idx);
             multibox.push_back(std::move(curr_box));
         }
@@ -253,20 +251,40 @@ int estimate(Config& cfg) {
     }
 
     // Estimate compressed size
-    double raw_size = 19327353 * num_components;
 
-    uintmax_t size = 0;
+    std::ifstream x;
 
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(compressed_dir)) {
-        if (std::filesystem::is_regular_file(entry)) {
-            size += std::filesystem::file_size(entry);
-        }
+    std::string header = files[0] + "/Header";
+    x.open(header.c_str(), std::ios::in);
+    if (!x.is_open()) {
+        spdlog::error("Failed to open header file: {}", files[0]);
     }
 
-    spdlog::info(size);
+    // read in first line of header
+    std::string str;
+    x >> str;
 
-    spdlog::info("Predicted compressed size: {}%", (static_cast<double>(size) / raw_size) * 100);
-    std::filesystem::remove_all(compressed_dir);
+    // read in number of components from header
+    int nComp;
+    x >> nComp;
+    x.close();
+
+    double raw_size = 0;
+    std::string raw_path = files[0] + "/Level_" + std::to_string(levels[0]) + "/";
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(raw_path)) {
+        raw_size += std::filesystem::file_size(entry);
+    }
+
+    raw_size /= nComp;
+    raw_size *= num_components;
+
+    double compressed_size = 0;
+
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(scratch_dir.path())) {
+        compressed_size += std::filesystem::file_size(entry);
+    }
+
+    spdlog::info("Predicted compressed size: {}%", (compressed_size / raw_size) * 100);
 
     return 0;
 

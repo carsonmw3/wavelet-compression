@@ -1,4 +1,5 @@
 #include "writeplotfile.h"
+#include "tmpdir.h"
 
 #include <spdlog/spdlog.h>
 #include <doctest/doctest.h>
@@ -329,6 +330,8 @@ TEST_CASE("Writing plotfiles") {
     info.yDim = 512;
     info.zDim = 256;
 
+    TempDir scratch_dir;
+
     write_plotfiles(testdata,
                     locs,
                     dims,
@@ -336,9 +339,9 @@ TEST_CASE("Writing plotfiles") {
                     num_levels,
                     num_components,
                     info,
-                    std::filesystem::temp_directory_path());
+                    scratch_dir.path().string() + "/");
 
-    REQUIRE(files_are_identical("../tests/plt00074/", std::filesystem::temp_directory_path() / "plt00074/"));
+    REQUIRE(files_are_identical("../tests/plt00074/", scratch_dir.path() / "plt00074/"));
 
     amrex::Finalize();
 

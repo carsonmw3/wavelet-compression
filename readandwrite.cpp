@@ -5,6 +5,7 @@
 #include <filesystem>
 
 #include <doctest/doctest.h>
+#include "tmpdir.h"
 
 static void write_float(std::ofstream& stream, float val) {
     stream.write(reinterpret_cast<const char*>(&val), sizeof(float));
@@ -373,14 +374,14 @@ TEST_CASE("Read/write Loc/Dim data") {
     test.push_back(vec2);
     test.push_back(vec2);
 
-    std::string temp_dir = std::filesystem::temp_directory_path();
+    TempDir scratch_dir;
 
     std::vector<std::vector<int>> counts = {{1, 1}, {1, 1}};
 
     AMRIterator iterator(2, 2, counts, 1);
 
-    write_loc_dim_to_bin(test, temp_dir, "test.raw", iterator);
-    LocDimData result = read_loc_dim_from_bin(temp_dir, "test.raw", { { 1, 1 }, { 1, 1 } }, iterator, 2, 2);
+    write_loc_dim_to_bin(test, scratch_dir.path(), "test.raw", iterator);
+    LocDimData result = read_loc_dim_from_bin(scratch_dir.path(), "test.raw", { { 1, 1 }, { 1, 1 } }, iterator, 2, 2);
 
     REQUIRE(result == test);
 
@@ -394,10 +395,10 @@ TEST_CASE("Read/write Box counts") {
     test.push_back(counts);
     test.push_back(counts);
 
-    std::string temp_dir = std::filesystem::temp_directory_path();
+    TempDir scratch_dir;
 
-    write_box_counts(test, temp_dir, "test.raw", 2, 3);
-    std::vector<std::vector<int>> result = read_box_counts(temp_dir, "test.raw", 2, 3);
+    write_box_counts(test, scratch_dir.path(), "test.raw", 2, 3);
+    std::vector<std::vector<int>> result = read_box_counts(scratch_dir.path(), "test.raw", 2, 3);
 
     REQUIRE(result == test);
 
@@ -417,10 +418,10 @@ TEST_CASE("Read/write amrexinfo") {
     test.yDim = 512;
     test.zDim = 256;
 
-    std::string temp_dir = std::filesystem::temp_directory_path();
+    TempDir scratch_dir;
 
-    write_amrexinfo(test, temp_dir, "test.raw");
-    AMReXInfo result = read_amrex_info(temp_dir, "test.raw");
+    write_amrexinfo(test, scratch_dir.path(), "test.raw");
+    AMReXInfo result = read_amrex_info(scratch_dir.path(), "test.raw");
 
     REQUIRE(result.comp_names == test.comp_names);
     REQUIRE(result.geomcellinfo == test.geomcellinfo);

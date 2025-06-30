@@ -2,6 +2,7 @@
 #include "decompressor.h"
 
 #include <doctest/doctest.h>
+#include "tmpdir.h"
 
 #include <lzma.h>
 
@@ -257,11 +258,12 @@ std::vector<CompressedWavelet> compress(multiBox3D&      box,
         compressed.rle_encoded = rle_encoded;
         compressed.need32      = need32;
 
-               // Serialize and compress using lzma
-        std::string filename =
-            compressed_dir + "compressed-wavelet-" + std::to_string(time) +
-            "-" + std::to_string(level) + "-" + std::to_string(components[c]) +
-            "-" + std::to_string(box_index) + ".xz";
+        // Serialize and compress using lzma
+        std::filesystem::path filename = std::filesystem::path(compressed_dir) /
+                                         ("compressed-wavelet-" + std::to_string(time) +
+                                          "-" + std::to_string(level) +
+                                          "-" + std::to_string(components[c]) +
+                                          "-" + std::to_string(box_index) + ".xz");
 
         std::ofstream file(filename, std::ios::binary);
         if (file.is_open()) {
@@ -363,11 +365,11 @@ TEST_CASE("File writing/compression") {
     int time = 0;
     int level = 0;
     int box_index = 0;
-    std::string compressed_dir = std::filesystem::temp_directory_path();
+    TempDir scratch_dir;
 
-    compress(test, components, keep, time, level, box_index, compressed_dir);
+    compress(test, components, keep, time, level, box_index, scratch_dir.path());
 
-    Box3D result = decompress(compressed_dir + "compressed-wavelet-0-0-0-0.xz", time, level, 0, box_index);
+    Box3D result = decompress(scratch_dir.path().string() + "/compressed-wavelet-0-0-0-0.xz", time, level, 0, box_index);
 
     REQUIRE(test[0].equals(result, 0));
 
