@@ -13,6 +13,7 @@
 #include <chrono>
 #include <doctest/doctest.h>
 #include <filesystem>
+#include <iostream>
 
 #include <AMReX.H>
 #include <AMReX_ParmParse.H>
@@ -171,7 +172,8 @@ int estimate(Config& cfg) {
     int num_times = 1;
     int num_levels = 1;
     int num_components = cfg.components.size();
-    std::string compressed_dir = std::filesystem::temp_directory_path();
+    std::string compressed_dir = "../tests/estimates/";
+    std::filesystem::create_directory(compressed_dir);
 
     std::vector<std::string> files;
     files.push_back(cfg.data_dir + "plt0" + std::to_string(cfg.min_time) + "00");
@@ -224,6 +226,8 @@ int estimate(Config& cfg) {
         regen_boxes[t][lev][box_idx] = std::move(multibox);
     });
 
+    spdlog::info("Decompression complete.");
+
     std::vector<std::vector<double>> all_rmses(num_components);
 
     iterator.iterate([&](int t, int l, int b) {
@@ -247,6 +251,22 @@ int estimate(Config& cfg) {
         double loss = calc_adj_loss(mean_rmse, max_values[c] - min_values[c]);
         spdlog::info("Predicted Adjusted loss, {} = {}", amrexinfo.comp_names[c], loss);
     }
+
+    // Estimate compressed size
+    double raw_size = 19327353 * num_components;
+
+    uintmax_t size = 0;
+
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(compressed_dir)) {
+        if (std::filesystem::is_regular_file(entry)) {
+            size += std::filesystem::file_size(entry);
+        }
+    }
+
+    spdlog::info(size);
+
+    spdlog::info("Predicted compressed size: {}%", (static_cast<double>(size) / raw_size) * 100);
+    std::filesystem::remove_all(compressed_dir);
 
     return 0;
 
