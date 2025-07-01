@@ -10,7 +10,7 @@ There are three main modes that `./wavelet-compression` can be run from:
   - (2) Adjusted loss metric (RMSE divided by data range),
   - (3) compressed size (as percentage of original size).
 
-For all three modes, prior to the flag, the user must specify:
+For the compression and estimate modes, prior to the flag, the user must specify:
 - `datadir`, the path to the raw AMReX plotfiles to be compressed
 - `mintime`, the lowest (inclusive) timestep being compressed
 - `maxtime`, the highest (inclusive) timestep being compressed
@@ -19,6 +19,8 @@ For all three modes, prior to the flag, the user must specify:
 - `components` to be compressed; look in AMReX Header files to determine the indices of desired component(s)
 - `keep`, the percentage used to calculate the threshold for keeping wavelet coefficients. Higher values lead to less compression but higher accuracy/lower loss. To start, try keep=0.99, 0.999, 0.9999 in `-estimate` mode.
 - `compressedDir`, the directory where the compressed data will be written (must already exist)
+
+For the decompression mode, the user need only specify `compressedDir`.
 
 Thus, an example run could look like:
 `./wavelet-compression datadir="../../../combustiondata/" mintime=74 maxtime=79 minlevel=0 maxlevel=3 components=0 6 25 46 keep=0.999 compressedDir="../../wavelet/" -c` 
