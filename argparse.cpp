@@ -3,8 +3,8 @@
 #include <AMReX_ParmParse.H>
 #include <spdlog/spdlog.h>
 
-// parses user inputs
-Config parse_config() {
+// parses user inputs in compression/estimate mode
+Config parse_config_compress() {
     Config cfg;
     amrex::ParmParse pp;
 
@@ -35,4 +35,17 @@ Config parse_config() {
     pp.query("compressedDir", cfg.compressed_dir);
 
     return cfg;
+}
+
+
+// parses user inputs in decompression mode
+Config parse_config_decompress() {
+    Config cfg;
+    amrex::ParmParse pp;
+
+    // directory where the compressed data is stored
+    pp.query("compressedDir", cfg.compressed_dir);
+
+    return cfg;
+
 }

@@ -18,6 +18,15 @@ using Dimensions = std::vector<int>;
 // location or dimension data for all boxes in a compression run
 using LocDimData = std::vector<std::vector<std::vector<std::vector<int>>>>;
 
+// Stores info about the compression run for use in decompression
+struct RunInfo {
+    int              min_time;
+    int              max_time;
+    int              min_level;
+    int              max_level;
+    std::vector<int> components;
+};
+
 // Stores relevant data for one level at one timestep
 struct LevelData {
     std::vector<multiBox3D> boxes;
@@ -50,6 +59,7 @@ struct AllData {
     std::vector<float>                                min_values;
     std::vector<float>                                max_values;
     AMReXInfo                                         amrexinfo;
+    RunInfo                                           runinfo;
 };
 
 // Stores relevant compressed data for a single box

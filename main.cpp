@@ -40,6 +40,13 @@ int compress(const Config& cfg) {
     spdlog::info("Processing data...");
     auto start = std::chrono::high_resolution_clock::now();
 
+    RunInfo runinfo;
+    runinfo.min_time = cfg.min_time;
+    runinfo.max_time = cfg.max_time;
+    runinfo.min_level = cfg.min_level;
+    runinfo.max_level = cfg.max_level;
+    runinfo.components = cfg.components;
+
     // process data for compression
     AllData data = preprocess_data(files,
                                    cfg.components,
@@ -52,10 +59,14 @@ int compress(const Config& cfg) {
     auto& min_values  = data.min_values;
     auto& max_values  = data.max_values;
     auto& amrexinfo   = data.amrexinfo;
+    data.runinfo      = runinfo;
 
     AMRIterator iterator(num_times, num_levels, box_counts, num_components);
 
-    // write location, dimension, box count, amrex data
+    // write runinfo, location, dimension, box count, amrex data
+    write_runinfo(data.runinfo,
+                  cfg.compressed_dir,
+                  "runinfo.raw");
     write_loc_dim_to_bin(locations,
                          cfg.compressed_dir,
                          "locations.raw",
@@ -99,10 +110,16 @@ int compress(const Config& cfg) {
 
 int decompress(const Config& cfg) {
 
+    RunInfo runinfo = read_runinfo(cfg.compressed_dir, "runinfo.raw");
+
+    spdlog::info("Decompressing data between timestep {} and {}, level {} and {}, for {} components",
+                 runinfo.min_time, runinfo.max_time, runinfo.min_level, runinfo.max_level,
+                 runinfo.components.size());
+
     // total number of timesteps, levels, and components, for use in iteration
-    int num_times = cfg.max_time - cfg.min_time + 1;
-    int num_levels = cfg.max_level - cfg.min_level + 1;
-    int num_components = cfg.components.size();
+    int num_times = runinfo.max_time - runinfo.min_time + 1;
+    int num_levels = runinfo.max_level - runinfo.min_level + 1;
+    int num_components = runinfo.components.size();
 
     spdlog::info("Beginning decompression...");
     auto start2      = std::chrono::high_resolution_clock::now();
@@ -130,7 +147,7 @@ int decompress(const Config& cfg) {
             regen_boxes[t][lev].resize(counts_read[t][lev]);
 
         multiBox3D multibox;
-        for (int component : cfg.components) {
+        for (int component : runinfo.components) {
             std::string file_path = cfg.compressed_dir + "compressed-wavelet-" +
                                     std::to_string(t) + "-" +
                                     std::to_string(lev) + "-" +
@@ -320,13 +337,14 @@ int main(int argc, char* argv[]) {
     amrex::Initialize(argc, argv);
     spdlog::set_level(spdlog::level::debug);
 
-    Config cfg = parse_config();
-
     if (has_flag(argc, argv, "-c")) {
+        Config cfg = parse_config_compress();
         compress(cfg);
     } else if (has_flag(argc, argv, "-estimate")) {
+        Config cfg = parse_config_compress();
         estimate(cfg);
     } else {
+        Config cfg = parse_config_decompress();
         decompress(cfg);
     }
 

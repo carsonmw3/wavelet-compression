@@ -360,6 +360,43 @@ AMReXInfo read_amrex_info(std::string path,
 }
 
 
+// writes RunInfo for a compression run to a binary file
+void write_runinfo(RunInfo info,
+                   std::string path,
+                   std::string out_file) {
+
+    std::ofstream file = open_write(path, out_file);
+
+    write_int(file, info.min_time);
+    write_int(file, info.max_time);
+    write_int(file, info.min_level);
+    write_int(file, info.max_level);
+    write_vector_int(file, info.components);
+
+    file.close();
+
+}
+
+
+// reads RunInfo for a compression run from a binary file
+RunInfo read_runinfo(std::string path,
+                     std::string in_file) {
+
+    std::ifstream file = open_read(path, in_file);
+    RunInfo info;
+
+    info.min_time = read_int(file);
+    info.max_time = read_int(file);
+    info.min_level = read_int(file);
+    info.max_level = read_int(file);
+    info.components = read_vector_int(file);
+
+    file.close();
+    return info;
+
+}
+
+
 TEST_CASE("Read/write Loc/Dim data") {
 
     std::vector<int> testloc = { 0, 14, 44 };

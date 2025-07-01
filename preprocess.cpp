@@ -117,6 +117,7 @@ AllData preprocess_data(std::vector<std::string> files,
     auto& minvals      = ret.min_values;
     auto& maxvals      = ret.max_values;
     auto& amrexinfo    = ret.amrexinfo;
+    auto& runinfo      = ret.runinfo;
 
     // initialize extrema
     minvals = std::vector<float>(components.size(),

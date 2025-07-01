@@ -41,3 +41,12 @@ void write_amrexinfo(AMReXInfo   info,
 // reads amrex formatting info for a compression run from a binary file
 AMReXInfo read_amrex_info(std::string path,
                           std::string in_file);
+
+// writes RunInfo for a compression run to a binary file
+void write_runinfo(RunInfo info,
+                   std::string path,
+                   std::string out_file);
+
+// reads RunInfo for a compression run from a binary file
+RunInfo read_runinfo(std::string path,
+                     std::string in_file);

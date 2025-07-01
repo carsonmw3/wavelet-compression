@@ -13,5 +13,8 @@ struct Config {
     std::vector<int> components;
 };
 
-// parses user inputs
-Config parse_config();
+// parses user inputs in compression/estimate mode
+Config parse_config_compress();
+
+// parses user inputs in decompression mode
+Config parse_config_decompress();
