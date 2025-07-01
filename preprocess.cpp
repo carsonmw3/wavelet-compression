@@ -9,7 +9,8 @@
 #include <AMReX_VisMF.H>
 #include <AMReX_MFIter.H>
 
-
+// Collects the relevant data for at one level and one timestep from the given
+// directory
 static LevelData collectDataNewFormat (std::string      lev_file,
                                        std::vector<int> components) {
 
@@ -22,6 +23,7 @@ static LevelData collectDataNewFormat (std::string      lev_file,
     auto& min_values = ret.min_values;
     auto& max_values = ret.max_values;
 
+    // initialize values
     box_count = 0;
     min_values = std::vector<float>(components.size(),
                                     std::numeric_limits<float>::max());
@@ -34,34 +36,41 @@ static LevelData collectDataNewFormat (std::string      lev_file,
     amrex::VisMF::Read(mf, lev_file);
     amrex::BoxArray ba = mf.boxArray();
 
-    for (amrex::MFIter mfi(mf, false); mfi.isValid(); ++mfi) {
+    for (amrex::MFIter mfi(mf, false); mfi.isValid(); ++mfi) { // iterate thru boxes of multifab
 
+        // get the box info and data for the current box
         const amrex::Box& box = mfi.validbox();
         const amrex::Array4<amrex::Real>& mfdata = mf.array(mfi);
 
+        // get the bounds and shape of the box
         const auto lo = lbound(box);
         const auto hi = ubound(box);
 
         const auto shape = box.size();
 
+        // extract the location of the box
         Location loc;
         loc.push_back(lo.x);
         loc.push_back(lo.y);
         loc.push_back(lo.z);
         locations.push_back(loc);
 
+        // extract the dimensions of the box
         Dimensions dims;
         dims.push_back(shape[0]);
         dims.push_back(shape[1]);
         dims.push_back(shape[2]);
         dimensions.push_back(dims);
 
+        // storage for extracted data
         multiBox3D box_data;
 
-        for (int c = 0; c < components.size(); c++) {
+        for (int c = 0; c < components.size(); c++) { // iterate thru components
 
+            // create a box of the correct dims in box_data
             box_data.push_back(Box3D(shape[0], shape[1], shape[2], 0.0f));
 
+            // iterate thru the box and extract the data
             for (auto k = lo.z; k <= hi.z; ++k) {
                 for (auto j = lo.y; j <= hi.y; ++j) {
                     for (auto i = lo.x; i <= hi.x; ++i) {
@@ -69,6 +78,7 @@ static LevelData collectDataNewFormat (std::string      lev_file,
                         float value = mfdata(i,j,k,components[c]);
                         box_data[c].set(i-lo.x, j-lo.y, k-lo.z, value);
 
+                        // track the min/max value throughout
                         if (value < min_values[c]) {
                             min_values[c] = value;
                         }
@@ -92,6 +102,8 @@ static LevelData collectDataNewFormat (std::string      lev_file,
 }
 
 
+// Collect all relevant data for the specified compression run and
+// format it for compression
 AllData preprocess_data(std::vector<std::string> files,
                         std::vector<int>         components,
                         std::vector<int>         levels) {
@@ -106,16 +118,17 @@ AllData preprocess_data(std::vector<std::string> files,
     auto& maxvals      = ret.max_values;
     auto& amrexinfo    = ret.amrexinfo;
 
+    // initialize extrema
     minvals = std::vector<float>(components.size(),
                                     std::numeric_limits<float>::max());
     maxvals = std::vector<float>(components.size(),
                                     std::numeric_limits<float>::min());
 
-    for (int i = 0; i < files.size(); i++) {
+    for (int i = 0; i < files.size(); i++) { // iterate thru timesteps
 
         std::string filename = files[i];
 
-        std::ifstream x;
+        std::ifstream x; // for reading header file
 
         // open header
         std::string header = filename + "/Header";
@@ -241,12 +254,14 @@ AllData preprocess_data(std::vector<std::string> files,
         std::vector<std::vector<Dimensions>> file_dimensions;
         std::vector<int>                     file_box_counts;
 
+        // after reading header, iterate thru levels
         for (int level : levels) {
 
+            // construct name of level directory
             std::string levX     = "/Level_"+std::to_string(level)+"/Cell";
             std::string lev_file = filename + levX;
 
-            // TODO: add multi-component support
+            // extract data for current level
             LevelData read_boxes = collectDataNewFormat(lev_file, components);
 
             spdlog::info("Processed data from time {}, level {}", i, level);
@@ -256,6 +271,7 @@ AllData preprocess_data(std::vector<std::string> files,
             file_dimensions.push_back(read_boxes.dimensions);
             file_box_counts.push_back(read_boxes.box_count);
 
+            // track min/max values using data from most recent level
             for (int c = 0; c < components.size(); c++){
 
                 float min = read_boxes.min_values[c];

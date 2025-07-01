@@ -7,23 +7,26 @@
 #include <doctest/doctest.h>
 #include "tmpdir.h"
 
+// writes a float to the given stream
 static void write_float(std::ofstream& stream, float val) {
     stream.write(reinterpret_cast<const char*>(&val), sizeof(float));
 }
 
-
+// reads a float from the given stream
 static float read_float(std::ifstream& stream) {
     float value;
     stream.read(reinterpret_cast<char*>(&value), sizeof(float));
     return value;
 }
 
+// writes a string to the given stream
 static void write_string(std::ofstream& stream, std::string& str) {
     size_t len = str.size();
     stream.write(reinterpret_cast<const char*>(&len), sizeof(len));
     stream.write(str.c_str(), len);
 }
 
+// reads a string from the given stream
 static std::string read_string(std::ifstream& stream) {
     size_t len;
     stream.read(reinterpret_cast<char*>(&len), sizeof(len));
@@ -32,37 +35,45 @@ static std::string read_string(std::ifstream& stream) {
     return str;
 }
 
+// writes an int to the given stream
 static void write_int(std::ofstream& stream, int val) {
     stream.write(reinterpret_cast<const char*>(&val), sizeof(int));
 }
 
+// reads an int from the given stream
 static int read_int(std::ifstream& stream) {
     int value;
     stream.read(reinterpret_cast<char*>(&value), sizeof(int));
     return value;
 }
 
+// writes a long double to the given stream
 static void write_long_double(std::ofstream& stream, long double val) {
     stream.write(reinterpret_cast<const char*>(&val), sizeof(long double));
 }
 
+// reads a long double from the given stream
 static long double read_long_double(std::ifstream& stream) {
     long double value;
     stream.read(reinterpret_cast<char*>(&value), sizeof(long double));
     return value;
 }
 
+// writes a double to the given stream
 static void write_double(std::ofstream& stream, double val) {
     stream.write(reinterpret_cast<const char*>(&val), sizeof(double));
 }
 
+// reads a double from the given stream
 static double read_double(std::ifstream& stream) {
     double value;
     stream.read(reinterpret_cast<char*>(&value), sizeof(double));
     return value;
 }
 
-static void write_vector_string(std::ofstream& stream, const std::vector<std::string>& vec) {
+// writes a std::vector<std::string>> to the given stream
+static void write_vector_string(std::ofstream&                  stream,
+                                const std::vector<std::string>& vec    ) {
     size_t size = vec.size();
     stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
     for (auto& str : vec) {
@@ -70,6 +81,7 @@ static void write_vector_string(std::ofstream& stream, const std::vector<std::st
     }
 }
 
+// reads a std::vector<std::string>> from the given stream
 static std::vector<std::string> read_vector_string(std::ifstream& stream) {
     size_t size;
     stream.read(reinterpret_cast<char*>(&size), sizeof(size));
@@ -80,6 +92,7 @@ static std::vector<std::string> read_vector_string(std::ifstream& stream) {
     return vec;
 }
 
+// writes a std::vector<int> to the given stream
 static void write_vector_int(std::ofstream& stream, const std::vector<int>& vec) {
     size_t size = vec.size();
     stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
@@ -88,6 +101,7 @@ static void write_vector_int(std::ofstream& stream, const std::vector<int>& vec)
     }
 }
 
+// reads a std::vector<int> from the given stream
 static std::vector<int> read_vector_int(std::ifstream& stream) {
     size_t size;
     stream.read(reinterpret_cast<char*>(&size), sizeof(size));
@@ -98,7 +112,9 @@ static std::vector<int> read_vector_int(std::ifstream& stream) {
     return vec;
 }
 
-static void write_vector_long_double(std::ofstream& stream, const std::vector<long double>& vec) {
+// writes a std::vector<long double> to the given stream
+static void write_vector_long_double(std::ofstream&                  stream,
+                                     const std::vector<long double>& vec) {
     size_t size = vec.size();
     stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
     for (long double val : vec) {
@@ -106,6 +122,7 @@ static void write_vector_long_double(std::ofstream& stream, const std::vector<lo
     }
 }
 
+// reads a std::vector<long double> from the given stream
 static std::vector<long double> read_vector_long_double(std::ifstream& stream) {
     size_t size;
     stream.read(reinterpret_cast<char*>(&size), sizeof(size));
@@ -116,7 +133,9 @@ static std::vector<long double> read_vector_long_double(std::ifstream& stream) {
     return vec;
 }
 
-static void write_vector_vector_double(std::ofstream& stream, const std::vector<std::vector<double>>& vecvec) {
+// writes a std::vector<std::vector<double>> to the given stream
+static void write_vector_vector_double(std::ofstream&                          stream,
+                                       const std::vector<std::vector<double>>& vecvec) {
     size_t outer = vecvec.size();
     stream.write(reinterpret_cast<const char*>(&outer), sizeof(outer));
     for (const auto& vec : vecvec) {
@@ -128,6 +147,7 @@ static void write_vector_vector_double(std::ofstream& stream, const std::vector<
     }
 }
 
+// reads a std::vector<std::vector<double>> from the given stream
 static std::vector<std::vector<double>> read_vector_vector_double(std::ifstream& stream) {
     size_t outer;
     stream.read(reinterpret_cast<char*>(&outer), sizeof(outer));
@@ -144,7 +164,9 @@ static std::vector<std::vector<double>> read_vector_vector_double(std::ifstream&
     return vecvec;
 }
 
-static void write_vector_vector_int(std::ofstream& stream, const std::vector<std::vector<int>>& vecvec) {
+// writes a std::vector<std::vector<int>> to the given stream
+static void write_vector_vector_int(std::ofstream&                       stream,
+                                    const std::vector<std::vector<int>>& vecvec) {
     size_t outer = vecvec.size();
     stream.write(reinterpret_cast<const char*>(&outer), sizeof(outer));
     for (const auto& vec : vecvec) {
@@ -156,6 +178,7 @@ static void write_vector_vector_int(std::ofstream& stream, const std::vector<std
     }
 }
 
+// reads a std::vector<std::vector<int>> from the given stream
 static std::vector<std::vector<int>> read_vector_vector_int(std::ifstream& stream) {
     size_t outer;
     stream.read(reinterpret_cast<char*>(&outer), sizeof(outer));
@@ -172,7 +195,7 @@ static std::vector<std::vector<int>> read_vector_vector_int(std::ifstream& strea
     return vecvec;
 }
 
-
+// opens an ofstream for a given file
 static std::ofstream open_write(std::string path, std::string outfile) {
     std::string   filename = path + outfile;
     std::ofstream file(filename, std::ios::binary);
@@ -185,8 +208,7 @@ static std::ofstream open_write(std::string path, std::string outfile) {
     return file;
 }
 
-
-
+// opens an ifstream for a given file
 static std::ifstream open_read(std::string path, std::string infile) {
     std::string   filename = path + infile;
     std::ifstream file(filename, std::ios::binary);
@@ -200,7 +222,7 @@ static std::ifstream open_read(std::string path, std::string infile) {
 }
 
 
-
+// writes location or dimension data for a compression run to a binary file
 void write_loc_dim_to_bin(LocDimData  data,
                           std::string path,
                           std::string out_file,
@@ -208,8 +230,9 @@ void write_loc_dim_to_bin(LocDimData  data,
 
     std::ofstream file = open_write(path, out_file);
 
+    // use the given iterator to write the data
     iterator.iterate([&](int t, int lev, int box_idx) {
-        for (int coord = 0; coord < 3; coord++) {
+        for (int coord = 0; coord < 3; coord++) { // assumes 3D
             float value = data[t][lev][box_idx][coord];
             write_float(file, value);
         }
@@ -219,18 +242,19 @@ void write_loc_dim_to_bin(LocDimData  data,
 }
 
 
-
+// reads location or dimension data for a compression run from a binary file
 LocDimData read_loc_dim_from_bin(std::string const&            path,
                                  std::string const&            in_file,
                                  std::vector<std::vector<int>> counts,
                                  AMRIterator                   iterator,
-                                                               int num_times,
-                                                               int num_levels) {
+                                 int                           num_times,
+                                 int                           num_levels) {
 
     std::ifstream file = open_read(path, in_file);
 
     LocDimData out(num_times, std::vector<std::vector<std::vector<int>>>(num_levels));
 
+    // use the given iterator to read the data
     iterator.iterate([&](int t, int lev, int box_idx) {
         std::vector<int> current_coords;
         for (int coord = 0; coord < 3; ++coord) {
@@ -245,6 +269,7 @@ LocDimData read_loc_dim_from_bin(std::string const&            path,
 }
 
 
+// writes box count data for a compression run to a binary file
 void write_box_counts(std::vector<std::vector<int>> counts,
                       std::string const&            path,
                       std::string const&            out_file,
@@ -266,6 +291,7 @@ void write_box_counts(std::vector<std::vector<int>> counts,
 }
 
 
+// reads box count data for a compression run from a binary file
 std::vector<std::vector<int>> read_box_counts(std::string path,
                                               std::string in_file,
                                               int         num_times,
@@ -291,35 +317,7 @@ std::vector<std::vector<int>> read_box_counts(std::string path,
 }
 
 
-void write_box_with_loc_dim(Volume3D           volume,
-                            std::string        path,
-                            std::string        out_file,
-                            std::vector<float> location,
-                            std::vector<float> dimension) {
-
-    std::ofstream file = open_write(path, out_file);
-
-           // Write location
-    for (float coord : location) {
-        write_float(file, coord);
-    }
-
-           // Write dimension
-    for (float dim : dimension) {
-        write_float(file, dim);
-    }
-
-
-           // Write volume data
-    volume.iterate([&](float value, size_t, size_t, size_t) {
-        write_float(file, value);
-    });
-    // TODO: Check and see if this can be used anywhere else
-
-    file.close();
-}
-
-
+// writes amrex formatting info for a compression run to a binary file
 void write_amrexinfo(AMReXInfo   info,
                      std::string path,
                      std::string out_file) {
@@ -340,7 +338,7 @@ void write_amrexinfo(AMReXInfo   info,
 
 }
 
-
+// reads amrex formatting info for a compression run from a binary file
 AMReXInfo read_amrex_info(std::string path,
                           std::string in_file) {
 

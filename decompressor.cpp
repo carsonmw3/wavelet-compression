@@ -9,8 +9,10 @@
 #include <utility>
 
 
+// Takes rle encoded data and decodes it back to a full length flattened vector
+// of coefficients, with zeroes for all the coefficients that were removed in thresholding
 static std::vector<float> rle_decode(std::vector<std::pair<int, float>> rle_encoded,
-                              int total_length) {
+                                     int                                total_length) {
 
     std::vector<float> result(total_length, 0.0f);
     int                idx = 0;
@@ -28,16 +30,14 @@ static std::vector<float> rle_decode(std::vector<std::pair<int, float>> rle_enco
 }
 
 
+// Takes a compressed box written in raw bytes and deserializes it back into
+// a CompressedWavelet structure for decoding/decomposition
 CompressedWavelet deserialize_compressed_wavelet(const std::string& data) {
+
     CompressedWavelet compressed;
     const char*       ptr = data.data(); // Pointer to start of binary data
 
-    // auto read = [&](auto& out) {
-    //     std::memcpy(&out, ptr, sizeof(out));
-    //     ptr += sizeof(out);
-    // };
-
-           // Shape (3 dimensions)
+    // Deserialize (3 dimensions)
     for (int i = 0; i < 3; ++i) {
         int dim;
         std::memcpy(&dim, ptr, sizeof(dim));
@@ -45,7 +45,7 @@ CompressedWavelet deserialize_compressed_wavelet(const std::string& data) {
         compressed.shape.push_back(dim);
     }
 
-           // Coeff shape (1 dimension)
+    // Deserialize coeff shape (1 dimension)
     for (int i = 0; i < 1; ++i) {
         int dim;
         std::memcpy(&dim, ptr, sizeof(dim));
@@ -53,13 +53,13 @@ CompressedWavelet deserialize_compressed_wavelet(const std::string& data) {
         compressed.coeff_shape.push_back(dim);
     }
 
-           // RLE size
+    // Deserialize length of RLE data
     int rle_size;
     std::memcpy(&rle_size, ptr, sizeof(rle_size));
     ptr += sizeof(rle_size);
     compressed.rle_encoded.resize(rle_size);
 
-           // RLE data
+    // deserialize RLE encoded data
     for (int i = 0; i < rle_size; ++i) {
         int     run;
         float val;
@@ -74,25 +74,32 @@ CompressedWavelet deserialize_compressed_wavelet(const std::string& data) {
 }
 
 
+// "Undoes"/decomposes a flattened vector of coefficients from a Haar wavelet
+// decomposition for a box, and returns the decomposed box
 Box3D inverse_wavelet_decompose(std::vector<float> flat, int x, int y, int z) {
-    // Step 1: reshape the flat array into a 3D volume
-    Box3D temp(x, y, z);
 
+    // Reshape the flat array into a 3D volume with appropriate dimensions
+    Box3D temp(x, y, z);
     int idx = 0;
     for (int i = 0; i < x; ++i)
         for (int j = 0; j < y; ++j)
             for (int k = 0; k < z; ++k)
                 temp(i, j, k) = flat[idx++];
 
-           // Step 2: Inverse along X
+    // Inverse decompose along X
     for (int j = 0; j < y; ++j) {
         for (int k = 0; k < z; ++k) {
+
+            // for each y and z, extract the row along x
             std::vector<double> depth(x);
             for (int i = 0; i < x; ++i)
                 depth[i] = temp(i, j, k);
 
+            // split halves (averages and differences)
             std::vector<double> restored(x);
             int                 half = x / 2;
+
+            // reconstruct values from averages and differences
             for (int i = 0; i < half; ++i) {
                 double avg          = depth[i];
                 double diff         = depth[half + i];
@@ -100,12 +107,13 @@ Box3D inverse_wavelet_decompose(std::vector<float> flat, int x, int y, int z) {
                 restored[2 * i + 1] = avg - diff;
             }
 
+            // replace values in box
             for (int i = 0; i < x; ++i)
                 temp(i, j, k) = restored[i];
         }
     }
 
-           // Step 3: Inverse along Y
+    // Repeat along Y
     for (int i = 0; i < x; ++i) {
         for (int k = 0; k < z; ++k) {
             std::vector<double> col(y);
@@ -126,7 +134,7 @@ Box3D inverse_wavelet_decompose(std::vector<float> flat, int x, int y, int z) {
         }
     }
 
-           // Step 4: Inverse along Z
+    // Repeat along Z
     for (int i = 0; i < x; ++i) {
         for (int j = 0; j < y; ++j) {
             std::vector<double> row(z);
@@ -151,10 +159,12 @@ Box3D inverse_wavelet_decompose(std::vector<float> flat, int x, int y, int z) {
 }
 
 
+// Reads a file written with lzma, deserializes it, and returns the CompressedWavelet
+// structure for it for decoding and decomposition
 static CompressedWavelet read_compressed_wavelet(const std::string& filename) {
     CompressedWavelet compressed;
 
-           // Get file size and read contents
+    // Get file size and read contents
     std::error_code ec;
     auto            size = std::filesystem::file_size(filename, ec);
     if (ec) {
@@ -174,7 +184,7 @@ static CompressedWavelet read_compressed_wavelet(const std::string& filename) {
         exit(EXIT_FAILURE);
     }
 
-           // Initialize LZMA stream with RAII
+    // Initialize LZMA stream with RAII
     lzma_stream strm = LZMA_STREAM_INIT;
     if (lzma_stream_decoder(&strm, UINT64_MAX, LZMA_CONCATENATED) != LZMA_OK) {
         spdlog::error("Failed to initialize LZMA decoder.");
@@ -199,7 +209,7 @@ static CompressedWavelet read_compressed_wavelet(const std::string& filename) {
             exit(EXIT_FAILURE);
         }
 
-               // Buffer full, expand
+        // Buffer full, expand
         size_t old_size = decompressed_data.size();
         decompressed_data.resize(old_size * 2);
         strm.next_out  = decompressed_data.data() + old_size;
@@ -209,6 +219,7 @@ static CompressedWavelet read_compressed_wavelet(const std::string& filename) {
     size_t decompressed_size = decompressed_data.size() - strm.avail_out;
     lzma_end(&strm);
 
+    // Deserialize read data
     try {
         std::string serialized_data(
             reinterpret_cast<char*>(decompressed_data.data()),
@@ -223,6 +234,7 @@ static CompressedWavelet read_compressed_wavelet(const std::string& filename) {
 }
 
 
+// Decompresses one box at the given file path using above functions
 Box3D decompress (std::string file_path,
                   int         time,
                   int         level,

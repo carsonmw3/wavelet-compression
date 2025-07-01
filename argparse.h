@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+// stores all user inputs
 struct Config {
     std::string data_dir;
     std::string compressed_dir;
@@ -12,4 +13,5 @@ struct Config {
     std::vector<int> components;
 };
 
+// parses user inputs
 Config parse_config();

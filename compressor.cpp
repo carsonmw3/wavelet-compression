@@ -16,6 +16,11 @@
 #include <random>
 #include <filesystem>
 
+
+// Masks values according to mask using a run-length encoding style format:
+// stores run-lenths of falses (values not stored) between trues (values stored),
+// i.e. pairs of format (number of false before, value for true). Cuts out need
+// for storage of any zeroed out coefficients according to "keep" value.
 static std::vector<std::pair<int, float>>
 rle_encode(std::vector<bool> const& mask, std::vector<float> const& values) {
 
@@ -36,6 +41,8 @@ rle_encode(std::vector<bool> const& mask, std::vector<float> const& values) {
     return rle;
 }
 
+
+
 TEST_CASE("RLE Encode") {
     auto values = std::vector<float> { 1.0, 2.0, 3.0, 4.0, 5.0 };
     auto mask   = std::vector<bool> { true, true, false, false, true };
@@ -46,10 +53,6 @@ TEST_CASE("RLE Encode") {
                                                       };
 
     auto to_check = rle_encode(mask, values);
-
-           // INFO("HERE ", to_check.at(0).second);
-           // INFO("HERE ", to_check.at(1).second);
-           // INFO("HERE ", to_check.at(2).second);
 
     REQUIRE(to_check == truth);
 
@@ -82,6 +85,7 @@ TEST_CASE("RLE Encode") {
 }
 
 
+// Helper function to turn an integer into its raw bytes
 static void serialize_int(std::string& buffer, int val) {
 
     buffer.append(reinterpret_cast<const char*>(&val), sizeof(int));
@@ -89,20 +93,26 @@ static void serialize_int(std::string& buffer, int val) {
 }
 
 
+// Serializes compressed data for a box into one string for writing to a file
 static std::string serialize_compressed_wavelet(CompressedWavelet compressed) {
+    // Output string
     std::string buffer;
 
+    // Serialize shape of box (3 dims)
     for (int dim : compressed.shape) {
         serialize_int(buffer, dim);
     }
 
+    // serialize number of coefficients (1 dim)
     for (int dim : compressed.coeff_shape) {
         serialize_int(buffer, dim);
     }
 
+    // serialize length of rle encoded data
     int rle_size = static_cast<int>(compressed.rle_encoded.size());
     serialize_int(buffer, rle_size);
 
+    // serialize rle encoded data
     for (const auto& [run, val] : compressed.rle_encoded) {
         serialize_int(buffer, run);
         buffer.append(reinterpret_cast<const char*>(&val), sizeof(float));
@@ -112,40 +122,51 @@ static std::string serialize_compressed_wavelet(CompressedWavelet compressed) {
 }
 
 
+// Performs a Haar wavelet decomposition (Daubechies 1) on a box, and returns
+// the flattened coefficients
 static std::vector<float> wavelet_decompose(Box3D const& box) {
+
+    // Get box dimensions
     int x = box.width();
     int y = box.height();
     int z = box.depth();
 
-    Box3D               temp = box.clone();
+    // Create a copy of the box to perform transform on
+    Box3D temp = box.clone();
+    // Store coefficients for output
     std::vector<float> flat;
 
-           // Decompose along Z
+    // Decompose along Z
     for (int i = 0; i < x; ++i) {
         for (int j = 0; j < y; ++j) {
+
+            // for each x and y, extract a row along z
             std::vector<float> row(z);
             for (int k = 0; k < z; ++k)
                 row[k] = temp(i, j, k);
 
             std::vector<float> low, high;
-            for (size_t k = 0; k + 1 < row.size(); k += 2) {
+            for (size_t k = 0; k + 1 < row.size(); k += 2) { // Pair elements by twos
                 float a = row[k], b = row[k + 1];
-                low.push_back((a + b) / 2.0);
-                high.push_back((a - b) / 2.0);
+                low.push_back((a + b) / 2.0); // calculate average (low freq)
+                high.push_back((a - b) / 2.0); // calculate difference (high freq)
             }
 
+            // Overwrite row where first half contains avg's,
+            // second half contains differences
             size_t mid = low.size();
             for (size_t k = 0; k < mid; ++k)
                 row[k] = low[k];
             for (size_t k = 0; k < high.size(); ++k)
                 row[mid + k] = high[k];
 
+            // Overwrite the transformed row back into temp
             for (int k = 0; k < z; ++k)
                 temp(i, j, k) = row[k];
         }
     }
 
-           // Repeat for Y
+    // Repeat for Y's
     for (int i = 0; i < x; ++i) {
         for (int k = 0; k < z; ++k) {
             std::vector<float> col(y);
@@ -170,7 +191,7 @@ static std::vector<float> wavelet_decompose(Box3D const& box) {
         }
     }
 
-           // Repeat for X
+    // Repeat for X's
     for (int j = 0; j < y; ++j) {
         for (int k = 0; k < z; ++k) {
             std::vector<float> depth(x);
@@ -195,42 +216,51 @@ static std::vector<float> wavelet_decompose(Box3D const& box) {
         }
     }
 
-           // Flatten result
+    // Flatten result
     for (int i = 0; i < x; ++i)
         for (int j = 0; j < y; ++j)
             for (int k = 0; k < z; ++k)
                 flat.push_back(temp(i, j, k));
 
+
     return flat;
 }
 
 
+// Compresses a multibox, and writes the result to a file. First,
+// performs wavelet decomposition on the box, finds a coefficient
+// threshold based on "keep", rle-encodes the remainin coefficients,
+// serializes them, and writes them to files using lzma.
 std::vector<CompressedWavelet> compress(multiBox3D&      box,
-              std::vector<int> components,
-              double           keep,
-              int              time,
-              int              level,
-              int              box_index,
-              std::string      compressed_dir) {
+                                        std::vector<int> components,
+                                        double           keep,
+                                        int              time,
+                                        int              level,
+                                        int              box_index,
+                                        std::string      compressed_dir) {
 
+    // Return vector of compressed data, one element for each component
     std::vector<CompressedWavelet> out;
 
-    for (int c = 0; c < components.size(); c++) {
+    for (int c = 0; c < components.size(); c++) { // iterate thru components
 
+        // clone box for decomposition
         Box3D comp_box = box[c].clone();
 
-               // Wavelet decomposition
+        // Wavelet decomposition
         std::vector<float> flat_coeffs = wavelet_decompose(comp_box);
 
-               // Thresholding
+        // Thresholding according to "keep"
         double max_val = *std::max_element(
             flat_coeffs.begin(), flat_coeffs.end(), [](double a, double b) {
                 return std::abs(a) < std::abs(b);
             });
         double thresh = max_val * (1 - keep);
 
-               // TODO: store 16bits if possible? If so, need to write
-               // code to write/read need32 in .xz files
+        // Create a mask according to the calculated threshold
+        // Note: for some components, a float32 isn't required to store
+        // the coefficients... could use the need32 flag to store some
+        // components in int16's instead.
         std::vector<bool>  mask;
         std::vector<float> values;
         bool               need32 = false;
@@ -245,11 +275,11 @@ std::vector<CompressedWavelet> compress(multiBox3D&      box,
             }
         }
 
-               // RLE encode
+        // RLE encode using mask
         std::vector<std::pair<int, float>> rle_encoded =
             rle_encode(mask, values);
 
-               // Create compressed structure
+        // Initialize compressed structure
         CompressedWavelet compressed;
         compressed.shape       = { static_cast<int>(comp_box.width()),
                                    static_cast<int>(comp_box.height()),
@@ -277,27 +307,26 @@ std::vector<CompressedWavelet> compress(multiBox3D&      box,
                 exit(EXIT_FAILURE);
             }
 
-                   // Input
+            // Input
             strm.next_in  = reinterpret_cast<const uint8_t*>(serialized.data());
             strm.avail_in = serialized.size();
 
-                   // Output buffer (reserve slightly more than input)
+            // Output buffer (reserve slightly more than input)
             std::vector<uint8_t> outbuf(serialized.size() * 1.1 +
                                         128); // +128 safety
             strm.next_out  = outbuf.data();
             strm.avail_out = outbuf.size();
 
-                   // Compress
+            // Compress
             ret = lzma_code(&strm, LZMA_FINISH);
             if (ret != LZMA_STREAM_END) {
-                // This should be fatal
                 spdlog::error("LZMA compression failed: {}");
                 exit(EXIT_FAILURE);
             }
 
             lzma_end(&strm);
 
-                   // Write compressed data
+            // Write compressed data
             file.write(reinterpret_cast<const char*>(outbuf.data()),
                        outbuf.size() - strm.avail_out);
             file.close();

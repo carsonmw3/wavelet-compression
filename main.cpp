@@ -22,14 +22,17 @@
 
 int compress(const Config& cfg) {
 
+    // total number of timesteps, levels, and components, for use in iteration
     int num_times = cfg.max_time - cfg.min_time + 1;
     int num_levels = cfg.max_level - cfg.min_level + 1;
     int num_components = cfg.components.size();
 
+    // vector of name of directory for each timestep
     std::vector<std::string> files;
     for (int t = cfg.min_time; t <= cfg.max_time; ++t)
         files.push_back(cfg.data_dir + "plt0" + std::to_string(t) + "00");
 
+    // vector of levels
     std::vector<int> levels;
     for (int l = cfg.min_level; l <= cfg.max_level; ++l)
         levels.push_back(l);
@@ -37,6 +40,7 @@ int compress(const Config& cfg) {
     spdlog::info("Processing data...");
     auto start = std::chrono::high_resolution_clock::now();
 
+    // process data for compression
     AllData data = preprocess_data(files,
                                    cfg.components,
                                    levels);
@@ -51,6 +55,7 @@ int compress(const Config& cfg) {
 
     AMRIterator iterator(num_times, num_levels, box_counts, num_components);
 
+    // write location, dimension, box count, amrex data
     write_loc_dim_to_bin(locations,
                          cfg.compressed_dir,
                          "locations.raw",
@@ -64,7 +69,6 @@ int compress(const Config& cfg) {
                      "boxcounts.raw",
                      num_times,
                      num_levels);
-
     write_amrexinfo(amrexinfo,
                     cfg.compressed_dir,
                     "amrexinfo.raw");
@@ -77,6 +81,7 @@ int compress(const Config& cfg) {
 
     auto start1 = std::chrono::high_resolution_clock::now();
 
+    // compress
     iterator.iterate([&](int t, int lev, int box_idx) {
         multiBox3D& current_box = boxes[t][lev][box_idx];
         compress(current_box, cfg.components, cfg.keep, t, lev, box_idx, cfg.compressed_dir);
@@ -94,12 +99,15 @@ int compress(const Config& cfg) {
 
 int decompress(const Config& cfg) {
 
+    // total number of timesteps, levels, and components, for use in iteration
     int num_times = cfg.max_time - cfg.min_time + 1;
     int num_levels = cfg.max_level - cfg.min_level + 1;
     int num_components = cfg.components.size();
 
     spdlog::info("Beginning decompression...");
     auto start2      = std::chrono::high_resolution_clock::now();
+
+    // get number of boxes at each time and level
     auto counts_read = read_box_counts(cfg.compressed_dir,
                                        "boxcounts.raw",
                                        num_times,
@@ -107,13 +115,16 @@ int decompress(const Config& cfg) {
 
     AMRIterator iterator(num_times, num_levels, counts_read, num_components);
 
+    // for storage of regenerated boxes
     std::vector<std::vector<std::vector<multiBox3D>>> regen_boxes;
 
+    // reshape according to number of timesteps and levels
     regen_boxes.resize(num_times);
     for (int t = 0; t < num_times; ++t) {
         regen_boxes[t].resize(num_levels);
     }
 
+    // decompress
     iterator.iterate([&](int t, int lev, int box_idx) {
         if (regen_boxes[t][lev].size() == 0)
             regen_boxes[t][lev].resize(counts_read[t][lev]);
@@ -136,6 +147,7 @@ int decompress(const Config& cfg) {
     spdlog::info("Decompression completed in {} seconds. Writing plotfiles...",
                  duration2);
 
+    // read info required for writing plotfiles, then write them
     AMReXInfo amrexinfo_read = read_amrex_info(cfg.compressed_dir,
                                                "amrexinfo.raw");
 
@@ -168,11 +180,16 @@ int decompress(const Config& cfg) {
 }
 
 
+// runs a quick compression/decompression with a limited amount of data to
+// get an estimate for metrics like rmse, loss, and compressed size
 int estimate(Config& cfg) {
 
+    // only runs on one time/level, but for all components
     int num_times = 1;
     int num_levels = 1;
     int num_components = cfg.components.size();
+
+    // storage for compressed files used in estimation
     TempDir scratch_dir;
 
     std::vector<std::string> files;
@@ -251,9 +268,9 @@ int estimate(Config& cfg) {
     }
 
     // Estimate compressed size
-
     std::ifstream x;
 
+    // Get total number of components in original data
     std::string header = files[0] + "/Header";
     x.open(header.c_str(), std::ios::in);
     if (!x.is_open()) {
@@ -269,21 +286,18 @@ int estimate(Config& cfg) {
     x >> nComp;
     x.close();
 
-    double raw_size = 0;
+    // calculate original data size
     std::string raw_path = files[0] + "/Level_" + std::to_string(levels[0]) + "/";
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(raw_path)) {
-        raw_size += std::filesystem::file_size(entry);
-    }
+    double raw_size = calc_size(raw_path);
 
+    // adjust based on number of components being compressed
     raw_size /= nComp;
     raw_size *= num_components;
 
-    double compressed_size = 0;
+    // calculate compressed size
+    double compressed_size = calc_size(scratch_dir.path());
 
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(scratch_dir.path())) {
-        compressed_size += std::filesystem::file_size(entry);
-    }
-
+    // print as percentage of original size
     spdlog::info("Predicted compressed size: {}%", (compressed_size / raw_size) * 100);
 
     return 0;
