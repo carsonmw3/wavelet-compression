@@ -20,8 +20,7 @@ using LocDimData = std::vector<std::vector<std::vector<std::vector<int>>>>;
 
 // Stores info about the compression run for use in decompression
 struct RunInfo {
-    int                      min_time;
-    int                      max_time;
+    std::vector<std::string> files;
     int                      min_level;
     int                      max_level;
     std::vector<std::string> components;

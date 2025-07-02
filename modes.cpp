@@ -23,32 +23,24 @@
 
 int compress(const Config& cfg) {
 
+    std::vector<std::string> files  = format_files(cfg.data_dir, cfg.min_time, cfg.max_time);
+    std::vector<int>         levels = format_levels(cfg.min_level, cfg.max_level);
+
     // total number of timesteps, levels, and components, for use in iteration
-    int num_times = cfg.max_time - cfg.min_time + 1;
-    int num_levels = cfg.max_level - cfg.min_level + 1;
+    int num_times = files.size();
+    int num_levels = levels.size();
     int num_components = cfg.components.size();
-
-           // vector of name of directory for each timestep
-    std::vector<std::string> files;
-    for (int t = cfg.min_time; t <= cfg.max_time; ++t)
-        files.push_back(cfg.data_dir + "plt0" + std::to_string(t) + "00");
-
-           // vector of levels
-    std::vector<int> levels;
-    for (int l = cfg.min_level; l <= cfg.max_level; ++l)
-        levels.push_back(l);
 
     spdlog::info("Processing data...");
     auto start = std::chrono::high_resolution_clock::now();
 
     RunInfo runinfo;
-    runinfo.min_time = cfg.min_time;
-    runinfo.max_time = cfg.max_time;
-    runinfo.min_level = cfg.min_level;
-    runinfo.max_level = cfg.max_level;
+    runinfo.files      = files;
+    runinfo.min_level  = cfg.min_level;
+    runinfo.max_level  = cfg.max_level;
     runinfo.components = cfg.components;
 
-           // process data for compression
+    // process data for compression
     AllData data = preprocess_data(files,
                                    cfg.components,
                                    levels);
@@ -65,7 +57,7 @@ int compress(const Config& cfg) {
 
     AMRIterator iterator(num_times, num_levels, box_counts, num_components);
 
-           // Verify access to compresseddir
+    // Verify access to compresseddir
     if (!cfg.compressed_dir.empty() && !std::filesystem::exists(cfg.compressed_dir)) {
         std::error_code ec;
         std::filesystem::create_directories(cfg.compressed_dir, ec);
@@ -75,7 +67,7 @@ int compress(const Config& cfg) {
         }
     }
 
-           // write runinfo, location, dimension, box count, amrex data
+    // write runinfo, location, dimension, box count, amrex data
     write_runinfo(runinfo,
                   cfg.compressed_dir,
                   "runinfo.raw");
@@ -104,7 +96,7 @@ int compress(const Config& cfg) {
 
     auto start1 = std::chrono::high_resolution_clock::now();
 
-           // compress
+    // compress
     iterator.iterate([&](int t, int lev, int box_idx) {
         multiBox3D& current_box = boxes[t][lev][box_idx];
         compress(current_box, runinfo.comp_idxs, cfg.keep, t, lev, box_idx, cfg.compressed_dir);
@@ -124,14 +116,16 @@ int decompress(const Config& cfg) {
 
     RunInfo runinfo = read_runinfo(cfg.compressed_dir, "runinfo.raw");
 
+    std::vector<int> levels = format_levels(runinfo.min_level, runinfo.max_level);
+
     spdlog::info("Decompressing data between timestep {} and {}, level {} and {}, for {} components",
-                 runinfo.min_time, runinfo.max_time, runinfo.min_level, runinfo.max_level,
+                 runinfo.files[0], runinfo.files[runinfo.files.size() - 1], runinfo.min_level, runinfo.max_level,
                  runinfo.components.size());
 
     // total number of timesteps, levels, and components, for use in iteration
-    int num_times = runinfo.max_time - runinfo.min_time + 1;
-    int num_levels = runinfo.max_level - runinfo.min_level + 1;
-    int num_components = runinfo.components.size();
+    int num_times = runinfo.files.size();
+    int num_levels = levels.size();
+    int num_components = cfg.components.size();
 
     spdlog::info("Beginning decompression...");
     auto start2 = std::chrono::high_resolution_clock::now();
@@ -173,7 +167,7 @@ int decompress(const Config& cfg) {
 
     auto end2      = std::chrono::high_resolution_clock::now();
     auto duration2 = std::chrono::duration<double>(end2 - start2).count();
-    spdlog::info("Decompression completed in {} seconds. Writing plotfiles...",
+    spdlog::info("Decompression completed in {} seconds.",
                  duration2);
 
     // read info required for writing plotfiles, then write them
@@ -197,7 +191,7 @@ int decompress(const Config& cfg) {
     write_plotfiles(regen_boxes,
                     locs_read,
                     dims_read,
-                    num_times,
+                    runinfo.files,
                     num_levels,
                     num_components,
                     runinfo.components,
@@ -219,11 +213,10 @@ int estimate(Config& cfg) {
     int num_levels = 1;
     int num_components = cfg.components.size();
 
-           // storage for compressed files used in estimation
+    // storage for compressed files used in estimation
     TempDir scratch_dir;
 
-    std::vector<std::string> files;
-    files.push_back(cfg.data_dir + "plt0" + std::to_string(cfg.min_time) + "00");
+    std::vector<std::string> files = format_files(cfg.data_dir, cfg.min_time, cfg.min_time);
 
     std::vector<int> levels;
     levels.push_back(cfg.min_level);

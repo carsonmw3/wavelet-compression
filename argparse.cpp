@@ -3,8 +3,11 @@
 #include <AMReX_ParmParse.H>
 #include <spdlog/spdlog.h>
 
+#include <filesystem>
+
 // parses user inputs in compression/estimate mode
 Config parse_config_compress() {
+
     Config cfg;
     amrex::ParmParse pp;
 
@@ -60,3 +63,72 @@ bool has_flag(int argc, char* argv[], const std::string& flag) {
     return false;
 }
 
+
+// Removes all non-digit characters, as well as leading and trailing 0's from a
+// filename
+int clean_string(std::string filename) {
+
+    std::string digits;
+
+    // only keep digits
+    for (char ch : filename) {
+        if (std::isdigit(static_cast<unsigned char>(ch))) {
+            digits += ch;
+        }
+    }
+
+    // get rid of leading 0's
+    size_t start = digits.find_first_not_of('0');
+    if (start == std::string::npos) {
+        return 0;  // all zeros
+    }
+    digits = digits.substr(start);
+
+    // get rid of trailing 0's
+    size_t end = digits.find_last_not_of('0');
+    digits = digits.substr(0, end + 1);
+
+    // convert to int
+    return std::stoi(digits);
+
+}
+
+
+// infers vector of directories to be compressed based on inputs
+std::vector<std::string> format_files(std::string data_dir,
+                                      std::string min_time,
+                                      std::string max_time) {
+
+    int first = clean_string(min_time);
+    int last = clean_string(max_time);
+
+    std::vector<std::string> files;
+
+    spdlog::info("This run involves the following files:");
+
+    for (const auto& entry : std::filesystem::directory_iterator(data_dir)) {
+
+        int current = clean_string(entry.path().string());
+
+        if (current >= first && current <= last) {
+            files.push_back(entry.path().string());
+            spdlog::info("{}", entry.path().string());
+        }
+
+    }
+
+    return files;
+
+}
+
+
+// constructs vector of levels to be compressed based on inputs
+std::vector<int> format_levels(int min_level, int max_level) {
+
+    std::vector<int> levels;
+    for (int l = min_level; l <= max_level; ++l)
+        levels.push_back(l);
+
+    return levels;
+
+}

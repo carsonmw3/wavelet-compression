@@ -118,17 +118,21 @@ static void populateMF (amrex::MultiFab&         multi,
 void write_plotfiles(std::vector<std::vector<std::vector<multiBox3D>>> &data,
                      LocDimData                                        locations,
                      LocDimData                                        dimensions,
-                     int                                               num_times,
+                     std::vector<std::string>                          files,
                      int                                               num_levels,
                      int                                               num_components,
                      std::vector<std::string>                          comp_names,
                      AMReXInfo                                         amrexinfo,
                      std::string                                       out) {
 
-    for (int t = 0; t < num_times; t++) { // iterate thru timesteps
+    spdlog::info("Writing the following plotfiles:");
+
+    for (int t = 0; t < files.size(); t++) { // iterate thru timesteps
 
         // name of plotfile directory
-        const std::string name = out + amrex::Concatenate("plt", t+74);
+        std::filesystem::path path = files[t];
+        const std::string name = out + path.filename().string();
+        spdlog::info("{}", name);
 
         // vectors to store plotfile info
         std::vector<amrex::MultiFab>   mfs;
@@ -364,7 +368,7 @@ TEST_CASE("Writing plotfiles") {
     write_plotfiles(testdata,
                     locs,
                     dims,
-                    num_times,
+                    {"../../../plt00074" , "../../../plt00075"},
                     num_levels,
                     num_components,
                     comp_names,

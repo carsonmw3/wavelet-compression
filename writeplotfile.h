@@ -6,7 +6,7 @@
 void write_plotfiles(std::vector<std::vector<std::vector<multiBox3D>>> &data,
                      LocDimData                                        locations,
                      LocDimData                                        dimensions,
-                     int                                               num_times,
+                     std::vector<std::string>                          files,
                      int                                               num_levels,
                      int                                               num_components,
                      std::vector<std::string>                          comp_names,

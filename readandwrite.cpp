@@ -365,8 +365,7 @@ void write_runinfo(RunInfo info,
 
     std::ofstream file = open_write(path, out_file);
 
-    write_int(file, info.min_time);
-    write_int(file, info.max_time);
+    write_vector_string(file, info.files);
     write_int(file, info.min_level);
     write_int(file, info.max_level);
     write_vector_string(file, info.components);
@@ -384,8 +383,7 @@ RunInfo read_runinfo(std::string path,
     std::ifstream file = open_read(path, in_file);
     RunInfo info;
 
-    info.min_time = read_int(file);
-    info.max_time = read_int(file);
+    info.files = read_vector_string(file);
     info.min_level = read_int(file);
     info.max_level = read_int(file);
     info.components = read_vector_string(file);
