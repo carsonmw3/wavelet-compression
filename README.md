@@ -24,6 +24,6 @@ For the compression and estimate modes, prior to the flag, the user must specify
 For the decompression mode, the user need only specify `compressedDir`.
 
 Thus, an example run could look like:
-`./wavelet-compression datadir="../../../combustiondata/" mintime=74 maxtime=79 minlevel=0 maxlevel=3 components="density Temp pressure x_velocity" keep=0.999 compressedDir="../../wavelet/" -c` 
+`./wavelet-compression datadir="../../../combustiondata/" mintime="plt07400" maxtime="plt07900" minlevel=0 maxlevel=3 components="density Temp pressure x_velocity" keep=0.999 compressedDir="../../wavelet/" -c` 
 
-or `./wavelet-compression datadir="../../../combustiondata/" mintime=74 maxtime=74 minlevel=0 maxlevel=1 components="Y(CH2O)" keep=0.9999 compressedDir="../../wavelet/" -estimate`
+or `./wavelet-compression datadir="../../../combustiondata/" mintime="plt07400" maxtime="plt07400" minlevel=0 maxlevel=1 components="Y(CH2O)" keep=0.9999 compressedDir="../../wavelet/" -estimate`
