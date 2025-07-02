@@ -64,7 +64,7 @@ bool has_flag(int argc, char* argv[], const std::string& flag) {
 }
 
 
-// Removes all non-digit characters, as well as leading and trailing 0's from a
+// Removes all non-digit characters, as well as leading 0's from a
 // filename
 int clean_string(std::string filename) {
 
@@ -83,10 +83,6 @@ int clean_string(std::string filename) {
         return 0;  // all zeros
     }
     digits = digits.substr(start);
-
-    // get rid of trailing 0's
-    size_t end = digits.find_last_not_of('0');
-    digits = digits.substr(0, end + 1);
 
     // convert to int
     return std::stoi(digits);
