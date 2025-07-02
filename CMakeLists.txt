@@ -28,6 +28,8 @@ set(SOURCES
     argparse.cpp
     argparse.h
     tmpdir.h
+    modes.h
+    modes.cpp
 )
 
 add_executable(wavelet-compression main.cpp ${SOURCES})

@@ -105,7 +105,7 @@ static LevelData collectDataNewFormat (std::string      lev_file,
 // Collect all relevant data for the specified compression run and
 // format it for compression
 AllData preprocess_data(std::vector<std::string> files,
-                        std::vector<int>         components,
+                        std::vector<std::string> components,
                         std::vector<int>         levels) {
 
     AllData ret;
@@ -117,7 +117,7 @@ AllData preprocess_data(std::vector<std::string> files,
     auto& minvals      = ret.min_values;
     auto& maxvals      = ret.max_values;
     auto& amrexinfo    = ret.amrexinfo;
-    auto& runinfo      = ret.runinfo;
+    auto& comp_idxs    = ret.comp_idxs;
 
     // initialize extrema
     minvals = std::vector<float>(components.size(),
@@ -148,13 +148,20 @@ AllData preprocess_data(std::vector<std::string> files,
 
         // read in variable names from header
         if (i == 0) {
+            int found = 0; // keep track of if all components have been found
             for (int n=0; n<nComp; n++) {
                 x >> str;
                 if (std::find(components.begin(),
                               components.end(),
-                              n) != components.end()) {
-                    amrexinfo.comp_names.push_back(str);
+                              str) != components.end()) {
+                    comp_idxs.push_back(n);
+                    found += 1;
                 }
+            }
+            if (found != components.size()) {
+                spdlog::error("Some components you entered were not found. Check that the names you "
+                              "entered match their names exactly in the AMReX Header files.");
+                return {};
             }
         } else {
             for (int n=0; n<nComp; n++) {
@@ -263,7 +270,7 @@ AllData preprocess_data(std::vector<std::string> files,
             std::string lev_file = filename + levX;
 
             // extract data for current level
-            LevelData read_boxes = collectDataNewFormat(lev_file, components);
+            LevelData read_boxes = collectDataNewFormat(lev_file, comp_idxs);
 
             spdlog::info("Processed data from time {}, level {}", i, level);
 
@@ -312,7 +319,7 @@ TEST_CASE("Preprocessing") {
 
     std::vector<std::string> files      = {"../tests/plt00074",
                                            "../tests/plt00075"};
-    std::vector<int>         components = {0, 1};
+    std::vector<std::string> components = {"temp", "pressure"};
     std::vector<int>         levels     = {0, 1};
 
     AllData test = preprocess_data(files, components, levels);
@@ -346,7 +353,6 @@ TEST_CASE("Preprocessing") {
 
     AMReXInfo expected_info;
 
-    expected_info.comp_names = { "temp", "pressure" };
     expected_info.geomcellinfo = { {0.6, 0.5, 0.4, 0.8, 0.9, 1.0},
                           {0.6, 0.5, 0.4, 0.8, 0.9, 1.0} };
     expected_info.ref_ratios = { 2, 2, 2 };
@@ -356,7 +362,6 @@ TEST_CASE("Preprocessing") {
     expected_info.yDim = 512;
     expected_info.zDim = 256;
 
-    REQUIRE(test.amrexinfo.comp_names == expected_info.comp_names);
     REQUIRE(test.amrexinfo.geomcellinfo == expected_info.geomcellinfo);
     REQUIRE(test.amrexinfo.ref_ratios == expected_info.ref_ratios);
     REQUIRE(test.amrexinfo.true_times == expected_info.true_times);

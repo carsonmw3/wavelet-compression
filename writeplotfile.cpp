@@ -121,6 +121,7 @@ void write_plotfiles(std::vector<std::vector<std::vector<multiBox3D>>> &data,
                      int                                               num_times,
                      int                                               num_levels,
                      int                                               num_components,
+                     std::vector<std::string>                          comp_names,
                      AMReXInfo                                         amrexinfo,
                      std::string                                       out) {
 
@@ -138,7 +139,7 @@ void write_plotfiles(std::vector<std::vector<std::vector<multiBox3D>>> &data,
         amrex::Vector<std::string>     varnames;
 
         // get names of compressed components
-        for (std::string& comp : amrexinfo.comp_names) {
+        for (std::string& comp : comp_names) {
             varnames.push_back(comp);
         }
 
@@ -347,7 +348,6 @@ TEST_CASE("Writing plotfiles") {
 
     AMReXInfo info;
 
-    info.comp_names = { "temp", "pressure" };
     info.geomcellinfo = { {0.6, 0.5, 0.4, 0.8, 0.9, 1.0},
                           {0.6, 0.5, 0.4, 0.8, 0.9, 1.0} };
     info.ref_ratios = { 2, 2, 2 };
@@ -357,6 +357,8 @@ TEST_CASE("Writing plotfiles") {
     info.yDim = 512;
     info.zDim = 256;
 
+    std::vector<std::string> comp_names = { "temp", "pressure" };
+
     TempDir scratch_dir;
 
     write_plotfiles(testdata,
@@ -365,6 +367,7 @@ TEST_CASE("Writing plotfiles") {
                     num_times,
                     num_levels,
                     num_components,
+                    comp_names,
                     info,
                     scratch_dir.path().string() + "/");
 

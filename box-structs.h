@@ -20,11 +20,12 @@ using LocDimData = std::vector<std::vector<std::vector<std::vector<int>>>>;
 
 // Stores info about the compression run for use in decompression
 struct RunInfo {
-    int              min_time;
-    int              max_time;
-    int              min_level;
-    int              max_level;
-    std::vector<int> components;
+    int                      min_time;
+    int                      max_time;
+    int                      min_level;
+    int                      max_level;
+    std::vector<std::string> components;
+    std::vector<int>         comp_idxs;
 };
 
 // Stores relevant data for one level at one timestep
@@ -40,7 +41,6 @@ struct LevelData {
 // Stores relevant data about the AMReX parameters needed when
 // writing plotfiles from decompressed data
 struct AMReXInfo {
-    std::vector<std::string>         comp_names;
     std::vector<std::vector<double>> geomcellinfo;
     std::vector<int>                 ref_ratios;
     std::vector<long double>         true_times;
@@ -59,7 +59,7 @@ struct AllData {
     std::vector<float>                                min_values;
     std::vector<float>                                max_values;
     AMReXInfo                                         amrexinfo;
-    RunInfo                                           runinfo;
+    std::vector<int>                                  comp_idxs;
 };
 
 // Stores relevant compressed data for a single box

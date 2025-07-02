@@ -32,7 +32,7 @@ Config parse_config_compress() {
     pp.query("keep", cfg.keep);
 
     // directory where the compressed data will be written (must already exist)
-    pp.query("compressedDir", cfg.compressed_dir);
+    pp.query("compresseddir", cfg.compressed_dir);
 
     return cfg;
 }
@@ -44,8 +44,19 @@ Config parse_config_decompress() {
     amrex::ParmParse pp;
 
     // directory where the compressed data is stored
-    pp.query("compressedDir", cfg.compressed_dir);
+    pp.query("compresseddir", cfg.compressed_dir);
 
     return cfg;
 
 }
+
+// checks for a flag in the user input
+bool has_flag(int argc, char* argv[], const std::string& flag) {
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == flag) {
+            return true;
+        }
+    }
+    return false;
+}
+

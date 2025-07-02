@@ -10,7 +10,7 @@ struct Config {
     int min_time, max_time;
     int min_level, max_level;
     float keep;
-    std::vector<int> components;
+    std::vector<std::string> components;
 };
 
 // parses user inputs in compression/estimate mode
@@ -18,3 +18,6 @@ Config parse_config_compress();
 
 // parses user inputs in decompression mode
 Config parse_config_decompress();
+
+// checks for a flag in the user input
+bool has_flag(int argc, char* argv[], const std::string& flag);

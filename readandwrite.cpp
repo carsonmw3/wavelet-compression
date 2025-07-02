@@ -324,7 +324,6 @@ void write_amrexinfo(AMReXInfo   info,
 
     std::ofstream file = open_write(path, out_file);
 
-    write_vector_string(file, info.comp_names);
     write_vector_vector_double(file, info.geomcellinfo);
     write_vector_int(file, info.ref_ratios);
     write_vector_long_double(file, info.true_times);
@@ -345,7 +344,6 @@ AMReXInfo read_amrex_info(std::string path,
     std::ifstream file = open_read(path, in_file);
     AMReXInfo info;
 
-    info.comp_names   = read_vector_string(file);
     info.geomcellinfo = read_vector_vector_double(file);
     info.ref_ratios   = read_vector_int(file);
     info.true_times   = read_vector_long_double(file);
@@ -371,7 +369,8 @@ void write_runinfo(RunInfo info,
     write_int(file, info.max_time);
     write_int(file, info.min_level);
     write_int(file, info.max_level);
-    write_vector_int(file, info.components);
+    write_vector_string(file, info.components);
+    write_vector_int(file, info.comp_idxs);
 
     file.close();
 
@@ -389,7 +388,8 @@ RunInfo read_runinfo(std::string path,
     info.max_time = read_int(file);
     info.min_level = read_int(file);
     info.max_level = read_int(file);
-    info.components = read_vector_int(file);
+    info.components = read_vector_string(file);
+    info.comp_idxs = read_vector_int(file);
 
     file.close();
     return info;
@@ -444,7 +444,6 @@ TEST_CASE("Read/write amrexinfo") {
 
     AMReXInfo test;
 
-    test.comp_names = { "temp", "pressure" };
     test.geomcellinfo = { {0.6, 0.5, 0.4}, {0.8, 0.9, 1.0} };
     test.ref_ratios = { 2, 2, 2 };
     test.true_times = { 0.2219392, 0.3874982 };
@@ -458,7 +457,6 @@ TEST_CASE("Read/write amrexinfo") {
     write_amrexinfo(test, scratch_dir.path(), "test.raw");
     AMReXInfo result = read_amrex_info(scratch_dir.path(), "test.raw");
 
-    REQUIRE(result.comp_names == test.comp_names);
     REQUIRE(result.geomcellinfo == test.geomcellinfo);
     REQUIRE(result.ref_ratios == test.ref_ratios);
     REQUIRE(result.true_times == test.true_times);
