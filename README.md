@@ -16,13 +16,13 @@ For the compression and estimate modes, prior to the flag, the user must specify
 - `maxtime`, the highest (inclusive) timestep being compressed
 - `minlevel`, the lowest (inclusive) refinement level being compressed
 - `maxlevel`, the highest (inclusive) refinement level being compressed
-- `components` to be compressed; look in AMReX Header files to determine the indices of desired component(s)
+- `components` to be compressed, in the format `"{component_name} {component_name} ..."`; look in AMReX Header files to determine the name of components, as input must match names in Header files exactly
 - `keep`, the percentage used to calculate the threshold for keeping wavelet coefficients. Higher values lead to less compression but higher accuracy/lower loss. To start, try keep=0.99, 0.999, 0.9999 in `-estimate` mode.
 - `compressedDir`, the directory where the compressed data will be written (must already exist)
 
 For the decompression mode, the user need only specify `compressedDir`.
 
 Thus, an example run could look like:
-`./wavelet-compression datadir="../../../combustiondata/" mintime=74 maxtime=79 minlevel=0 maxlevel=3 components=0 6 25 46 keep=0.999 compressedDir="../../wavelet/" -c` 
+`./wavelet-compression datadir="../../../combustiondata/" mintime=74 maxtime=79 minlevel=0 maxlevel=3 components="density Temp pressure x_velocity" keep=0.999 compressedDir="../../wavelet/" -c` 
 
-or `./wavelet-compression datadir="../../../combustiondata/" mintime=74 maxtime=74 minlevel=0 maxlevel=1 components=6 keep=0.9999 compressedDir="../../wavelet/" -estimate`
+or `./wavelet-compression datadir="../../../combustiondata/" mintime=74 maxtime=74 minlevel=0 maxlevel=1 components="Y(CH2O)" keep=0.9999 compressedDir="../../wavelet/" -estimate`
