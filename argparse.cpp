@@ -15,10 +15,10 @@ Config parse_config_compress() {
     pp.query("datadir", cfg.data_dir);
 
     // lowest timestep to compress (inclusive)
-    pp.query("mintime", cfg.min_time);
+    pp.query("minfile", cfg.min_time);
 
     // highest timestep to compress (inclusive)
-    pp.query("maxtime", cfg.max_time);
+    pp.query("maxfile", cfg.max_time);
 
     // lowest level to compress (inclusive)
     pp.query("minlevel", cfg.min_level);
