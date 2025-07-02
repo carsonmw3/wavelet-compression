@@ -12,8 +12,9 @@ There are three main modes that `./wavelet-compression` can be run from:
 
 For the compression and estimate modes, prior to the flag, the user must specify:
 - `datadir`, the path to the raw AMReX plotfiles to be compressed
-- `mintime`, the lowest (inclusive) timestep being compressed
-- `maxtime`, the highest (inclusive) timestep being compressed
+- `mintime`, the name of the directory in `datadir` containing the first (inclusive) timestep being compressed
+- `maxtime`, the name of the directory in `datadir` containing highest (inclusive) timestep being compressed
+  - Note: `mintime` and `maxtime` should be the full name of the directory, including non-digit characters. The code will automatically look for analagous directories with names containing numbers that fall between `mintime` and `maxtime`, and indicate which files will be compressed. For example, if `mintime="plt07400"` and `maxtime="plt07800"`, any directory with a similarly formatted name ending with a number between 7400 and 7800 will be compressed.
 - `minlevel`, the lowest (inclusive) refinement level being compressed
 - `maxlevel`, the highest (inclusive) refinement level being compressed
 - `components` to be compressed, in the format `"{component_name} {component_name} ..."`; look in AMReX Header files to determine the name of components, as input must match names in Header files exactly
