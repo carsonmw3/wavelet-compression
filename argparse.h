@@ -5,11 +5,12 @@
 
 // stores all user inputs
 struct Config {
-    std::string data_dir;
-    std::string compressed_dir;
-    std::string min_time, max_time;
-    int min_level, max_level;
-    float keep;
+    std::string              data_dir;
+    std::string              compressed_dir;
+    std::string              out_dir;
+    std::string              min_time, max_time;
+    int                      min_level, max_level;
+    float                    keep;
     std::vector<std::string> components;
 };
 

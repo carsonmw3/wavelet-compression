@@ -206,6 +206,16 @@ void write_plotfiles(std::vector<std::vector<std::vector<multiBox3D>>> data,
         const amrex::Vector<int>                    constLevelSteps = level_steps_amr;
         const amrex::Vector<amrex::IntVect>         constRefRatio   = ref_ratio;
 
+        // Verify access to out
+        if (!out.empty() && !std::filesystem::exists(out)) {
+            std::error_code ec;
+            std::filesystem::create_directories(out, ec);
+            if (ec) {
+                spdlog::error("Failed to create output directory {}: {}",
+                              out, ec.message());
+            }
+        }
+
         // write plotfile
         amrex::WriteMultiLevelPlotfile(name,
                                        num_levels,

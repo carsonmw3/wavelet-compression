@@ -1,8 +1,2 @@
-- Write different components with int16, int32, or float32 depending on what their coefficients require
+- Write different components with int16, int32, or float32 depending on what their coefficients require to improve compressed size
 	- Normalize coefficients?
-
-- Class for iterating through component/time/lev/box?
-
-- Split compressor/decompressor
-
-- Figure out input strategy

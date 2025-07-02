@@ -196,7 +196,7 @@ int decompress(const Config& cfg) {
                     num_components,
                     runinfo.components,
                     amrexinfo_read,
-                    "../../regenerated-plotfiles/");
+                    cfg.out_dir);
 
     spdlog::info("Sucessfully wrote plotfiles.");
 

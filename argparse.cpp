@@ -49,6 +49,9 @@ Config parse_config_decompress() {
     // directory where the compressed data is stored
     pp.query("compresseddir", cfg.compressed_dir);
 
+    // directory to write plotfiles
+    pp.query("out", cfg.out_dir);
+
     return cfg;
 
 }
@@ -75,6 +78,11 @@ int clean_string(std::string filename) {
         if (std::isdigit(static_cast<unsigned char>(ch))) {
             digits += ch;
         }
+    }
+
+    // check if no digits, in which case, return -1
+    if (digits.size() == 0) {
+        return -1;
     }
 
     // get rid of leading 0's
