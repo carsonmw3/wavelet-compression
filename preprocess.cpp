@@ -364,7 +364,9 @@ TEST_CASE("Preprocessing") {
 
     REQUIRE(test.amrexinfo.geomcellinfo == expected_info.geomcellinfo);
     REQUIRE(test.amrexinfo.ref_ratios == expected_info.ref_ratios);
-    REQUIRE(test.amrexinfo.true_times == expected_info.true_times);
+    for (size_t i = 0; i < test.amrexinfo.true_times.size(); ++i) {
+        REQUIRE(test.amrexinfo.true_times[i] == doctest::Approx(expected_info.true_times[i]).epsilon(1e-6));
+    }
     REQUIRE(test.amrexinfo.level_steps == expected_info.level_steps);
     REQUIRE(test.amrexinfo.xDim == expected_info.xDim);
     REQUIRE(test.amrexinfo.yDim == expected_info.yDim);

@@ -125,7 +125,7 @@ int decompress(const Config& cfg) {
     // total number of timesteps, levels, and components, for use in iteration
     int num_times = runinfo.files.size();
     int num_levels = levels.size();
-    int num_components = cfg.components.size();
+    int num_components = runinfo.components.size();
 
     spdlog::info("Beginning decompression...");
     auto start2 = std::chrono::high_resolution_clock::now();
@@ -188,7 +188,7 @@ int decompress(const Config& cfg) {
                                                  num_times,
                                                  num_levels);
 
-    write_plotfiles(regen_boxes,
+    write_plotfiles(std::move(regen_boxes),
                     locs_read,
                     dims_read,
                     runinfo.files,

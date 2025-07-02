@@ -100,7 +100,7 @@ static void populateMF (amrex::MultiFab&         multi,
 
                     for (int i = lo.x; i <= hi.x; i++) {
 
-                            mfdata(i,j,k,c) = curr_box.get(i-lo.x, j-lo.y, k-lo.z);
+                        mfdata(i,j,k,c) = curr_box.get(i-lo.x, j-lo.y, k-lo.z);
 
                     }
                 }
@@ -115,7 +115,7 @@ static void populateMF (amrex::MultiFab&         multi,
 
 
 // writes a plotfile for each timestep of a compression run to the directory "out"
-void write_plotfiles(std::vector<std::vector<std::vector<multiBox3D>>> &data,
+void write_plotfiles(std::vector<std::vector<std::vector<multiBox3D>>> data,
                      LocDimData                                        locations,
                      LocDimData                                        dimensions,
                      std::vector<std::string>                          files,
@@ -232,6 +232,18 @@ static bool files_are_identical(const std::string& file1, const std::string& fil
     std::istreambuf_iterator<char> begin2(f2), end2;
 
     return std::equal(begin1, end1, begin2, end2);
+}
+
+bool directories_are_identical(const std::filesystem::path& p1, const std::filesystem::path& p2) {
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(p1)) {
+        const auto rel_path = std::filesystem::relative(entry.path(), p1);
+        const auto other_path = p2 / rel_path;
+
+        if (!std::filesystem::exists(other_path)) return false;
+        if (std::filesystem::is_regular_file(entry) && !files_are_identical(entry.path().string(), other_path.string()))
+            return false;
+    }
+    return true;
 }
 
 
@@ -365,7 +377,7 @@ TEST_CASE("Writing plotfiles") {
 
     TempDir scratch_dir;
 
-    write_plotfiles(testdata,
+    write_plotfiles(std::move(testdata),
                     locs,
                     dims,
                     {"../../../plt00074" , "../../../plt00075"},
@@ -375,7 +387,7 @@ TEST_CASE("Writing plotfiles") {
                     info,
                     scratch_dir.path().string() + "/");
 
-    REQUIRE(files_are_identical("../tests/plt00074/", scratch_dir.path() / "plt00074/"));
+    REQUIRE(directories_are_identical("../tests/plt00074/", scratch_dir.path() / "plt00074/"));
 
     amrex::Finalize();
 
