@@ -16,7 +16,7 @@ You should then be able to run `./wavelet-compression` followed by the options d
 ## Usage
 There are three main modes that `./wavelet-compression` can be run from:
 - Compression mode with `-c`: Compresses data into a specified directory
-- Decompression mode (no flag): Decompresses data compressed with `./wavelet-compression` from a specified directory
+- Decompression mode with `-d`: Decompresses data compressed with `./wavelet-compression` from a specified directory
 - Estimate mode with `-estimate`: runs a short test with a limited amount of data to give an estimate of the following compression metrics:
   - (1) Root Mean Squared Error (RMSE) of original data vs. decompressed data, i.e. on average, the difference of any given data value across the dataset from its corresponding original after compression/decompression,
   - (2) Adjusted loss metric (RMSE divided by data range),
@@ -39,3 +39,5 @@ Thus, an example run could look like:
 `./wavelet-compression datadir="../../../combustiondata/" minfile="plt07400" maxfile="plt07900" minlevel=0 maxlevel=3 components="density Temp pressure x_velocity" keep=0.999 compressedDir="../../wavelet/" -c` 
 
 or `./wavelet-compression datadir="../../../combustiondata/" minfile="plt07400" maxfile="plt07400" minlevel=0 maxlevel=1 components="Y(CH2O)" keep=0.9999 compressedDir="../../wavelet/" -estimate`
+
+or `./wavelet-compression compresseddir="../../wavelet/" out="../../regenerated-plotfiles/" -d`
