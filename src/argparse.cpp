@@ -13,30 +13,54 @@ Config parse_config_compress() {
     amrex::ParmParse pp;
 
     // Location of raw data (this dir contains "plt..." directories)
-    pp.query("datadir", cfg.data_dir);
+    bool found = pp.query("datadir", cfg.data_dir);
+    if (!found) {
+        spdlog::error("Missing datadir!");
+    }
 
     // lowest timestep to compress (inclusive)
-    pp.query("minfile", cfg.min_time);
+    found = pp.query("minfile", cfg.min_time);
+    if (!found) {
+        spdlog::error("Missing minfile!");
+    }
 
     // highest timestep to compress (inclusive)
-    pp.query("maxfile", cfg.max_time);
+    found = pp.query("maxfile", cfg.max_time);
+    if (!found) {
+        spdlog::error("Missing maxfile!");
+    }
 
     // lowest level to compress (inclusive)
-    pp.query("minlevel", cfg.min_level);
+    found = pp.query("minlevel", cfg.min_level);
+    if (!found) {
+        spdlog::error("Missing minlevel!");
+    }
 
     // highest level to compress (inclusive)
-    pp.query("maxlevel", cfg.max_level);
+    found = pp.query("maxlevel", cfg.max_level);
+    if (!found) {
+        spdlog::error("Missing maxlevel!");
+    }
 
     // components to compress (e.g., for 6 and 25 type "components=6 25")
-    pp.queryarr("components", cfg.components);
+    found = pp.queryarr("components", cfg.components);
+    if (!found) {
+        spdlog::error("Missing component list!");
+    }
 
     // percent of wavelet coefficients that will be kept in compression.
     // higher keep value should lead to less compression but higher accuracy.
     // to start, try keep=0.99, 0.999, and 0.9999 in -estimate mode
-    pp.query("keep", cfg.keep);
+    found = pp.query("keep", cfg.keep);
+    if (!found) {
+        spdlog::error("Missing 'keep' parameter!");
+    }
 
     // directory where the compressed data will be written (must already exist)
-    pp.query("compresseddir", cfg.compressed_dir);
+    found = pp.query("compresseddir", cfg.compressed_dir);
+    if (!found) {
+        spdlog::error("Missing compresseddir!");
+    }
 
     return cfg;
 }
@@ -48,10 +72,16 @@ Config parse_config_decompress() {
     amrex::ParmParse pp;
 
     // directory where the compressed data is stored
-    pp.query("compresseddir", cfg.compressed_dir);
+    bool found = pp.query("compresseddir", cfg.compressed_dir);
+    if (!found) {
+        spdlog::error("Missing compresseddir!");
+    }
 
     // directory to write plotfiles
-    pp.query("out", cfg.out_dir);
+    found = pp.query("out", cfg.out_dir);
+    if (!found) {
+        spdlog::error("Missing out directory!");
+    }
 
     return cfg;
 

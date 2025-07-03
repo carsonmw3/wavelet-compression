@@ -18,9 +18,11 @@ int main(int argc, char* argv[]) {
     } else if (has_flag(argc, argv, "-estimate")) {
         Config cfg = parse_config_compress();
         estimate(cfg);
-    } else {
+    } else if (has_flag(argc, argv, "-d")) {
         Config cfg = parse_config_decompress();
         decompress(cfg);
+    } else {
+        spdlog::error("Specify a mode: -c for compression, -d for decompression, or -estimate for estimate mode!");
     }
 
     amrex::Finalize();
