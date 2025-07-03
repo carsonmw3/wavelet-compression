@@ -1,6 +1,18 @@
 # Wavelet-based compression for AMR data
 A tool to compress Adaptive Mesh Refinement data in hopes of being able to store more of it. Allows for compression/loss tradeoffs depending on needs.
 
+## Installation
+Downloading and compiling the required packages for this tool can be done by running the `install_deps.py` script, which will create a `third_party` directory.
+
+After that, to build `wavelet-compression`:
+- `mkdir build`
+- `cd build`
+- `cmake <path_to_wavelet-compression>`
+- `make`
+
+You should then be able to run `./wavelet-compression` followed by the options described below.
+
+
 ## Usage
 There are three main modes that `./wavelet-compression` can be run from:
 - Compression mode with `-c`: Compresses data into a specified directory
