@@ -43,48 +43,6 @@ rle_encode(std::vector<bool> const& mask, std::vector<float> const& values) {
 
 
 
-TEST_CASE("RLE Encode") {
-    auto values = std::vector<float> { 1.0, 2.0, 3.0, 4.0, 5.0 };
-    auto mask   = std::vector<bool> { true, true, false, false, true };
-    auto truth  = std::vector<std::pair<int, float>> {
-                                                      { 0, 1.0 },
-                                                      { 0, 2.0 },
-                                                      { 2, 3.0 },
-                                                      };
-
-    auto to_check = rle_encode(mask, values);
-
-    REQUIRE(to_check == truth);
-
-    SUBCASE("mask all true") {
-
-        auto mask  = std::vector<bool> { true, true, true, true, true };
-        auto truth = std::vector<std::pair<int, float>> {
-                                                         { 0, 1.0 },
-                                                         { 0, 2.0 },
-                                                         { 0, 3.0 },
-                                                         { 0, 4.0 },
-                                                         { 0, 5.0 }
-                                                         };
-
-        auto to_check = rle_encode(mask, values);
-
-        REQUIRE(to_check == truth);
-
-    }
-
-    SUBCASE("mask all false") {
-
-        auto mask  = std::vector<bool> { false, false, false, false, false };
-        auto truth = std::vector<std::pair<int, float>> {};
-        auto to_check = rle_encode(mask, values);
-
-        REQUIRE(to_check == truth);
-
-    }
-}
-
-
 // Helper function to turn an integer into its raw bytes
 static void serialize_int(std::string& buffer, int val) {
 
@@ -337,6 +295,49 @@ std::vector<CompressedWavelet> compress(multiBox3D&      box,
 
     return out;
 }
+
+
+TEST_CASE("RLE Encode") {
+    auto values = std::vector<float> { 1.0, 2.0, 3.0, 4.0, 5.0 };
+    auto mask   = std::vector<bool> { true, true, false, false, true };
+    auto truth  = std::vector<std::pair<int, float>> {
+                                                      { 0, 1.0 },
+                                                      { 0, 2.0 },
+                                                      { 2, 3.0 },
+                                                      };
+
+    auto to_check = rle_encode(mask, values);
+
+    REQUIRE(to_check == truth);
+
+    SUBCASE("mask all true") {
+
+        auto mask  = std::vector<bool> { true, true, true, true, true };
+        auto truth = std::vector<std::pair<int, float>> {
+            { 0, 1.0 },
+            { 0, 2.0 },
+            { 0, 3.0 },
+            { 0, 4.0 },
+            { 0, 5.0 }
+        };
+
+        auto to_check = rle_encode(mask, values);
+
+        REQUIRE(to_check == truth);
+
+    }
+
+    SUBCASE("mask all false") {
+
+        auto mask  = std::vector<bool> { false, false, false, false, false };
+        auto truth = std::vector<std::pair<int, float>> {};
+        auto to_check = rle_encode(mask, values);
+
+        REQUIRE(to_check == truth);
+
+    }
+}
+
 
 TEST_CASE("Serialization") {
 

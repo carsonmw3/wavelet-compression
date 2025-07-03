@@ -3,6 +3,7 @@
 #include <cmath>
 #include <filesystem>
 #include <spdlog/spdlog.h>
+#include <doctest/doctest.h>
 
 // Calculates root mean squared error for two multiboxes
 // note: originally, iteration thru multiboxes happened within this function,
@@ -63,3 +64,23 @@ double calc_size(std::string path) {
 
 }
 
+
+TEST_CASE("Calc RMSE") {
+
+    Box3D testbox1(2, 2, 2, 0.0f);
+    Box3D testbox2(2, 2, 2, 3.5f);
+
+    multiBox3D test1;
+    multiBox3D test2;
+
+    test1.push_back(testbox1.clone());
+    test2.push_back(testbox2.clone());
+    test1.push_back(testbox1.clone());
+    test2.push_back(testbox2.clone());
+
+    std::vector<double> rmses = calc_rmse_per_box(test1, test2, 2);
+    std::vector<double> truth = { 3.5, 3.5 };
+
+    REQUIRE(rmses == truth);
+
+}

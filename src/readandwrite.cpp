@@ -466,4 +466,28 @@ TEST_CASE("Read/write amrexinfo") {
 }
 
 
+TEST_CASE("Read/write runinfo") {
+
+    RunInfo test;
+
+    test.files = { "../../../raw/plt00740", "../../../raw/plt07500" };
+    test.min_level = 0;
+    test.max_level = 3;
+    test.components = { "Temp", "pressure" };
+    test.comp_idxs = { 6, 25 };
+
+    TempDir scratch_dir;
+
+    write_runinfo(test, scratch_dir.path(), "test.raw");
+    RunInfo result = read_runinfo(scratch_dir.path(), "test.raw");
+
+    REQUIRE(result.files == test.files);
+    REQUIRE(result.min_level == test.min_level);
+    REQUIRE(result.max_level == test.max_level);
+    REQUIRE(result.components == test.components);
+    REQUIRE(result.comp_idxs == test.comp_idxs);
+
+}
+
+
 

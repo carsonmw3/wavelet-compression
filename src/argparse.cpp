@@ -2,6 +2,7 @@
 
 #include <AMReX_ParmParse.H>
 #include <spdlog/spdlog.h>
+#include <doctest/doctest.h>
 
 #include <filesystem>
 
@@ -134,5 +135,14 @@ std::vector<int> format_levels(int min_level, int max_level) {
         levels.push_back(l);
 
     return levels;
+
+}
+
+
+TEST_CASE("String cleaning") {
+
+    REQUIRE(clean_string("plt07400") == 7400);
+    REQUIRE(clean_string("fff9909") == 9909);
+    REQUIRE(clean_string("doctest.h") == -1);
 
 }
