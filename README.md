@@ -29,7 +29,7 @@ For the compression and estimate modes, prior to the flag, the user must specify
   - Note: `minfile` and `maxfile` should be the full name of the directory, including non-digit characters. The code will automatically look for analagous directories with names containing numbers that fall between `minfile` and `maxfile`, and indicate which files will be compressed. For example, if `minfile="plt07400"` and `maxfile="plt07800"`, any directory with a similarly formatted name ending with a number between 7400 and 7800 will be compressed.
 - `minlevel`, the lowest (inclusive) refinement level being compressed
 - `maxlevel`, the highest (inclusive) refinement level being compressed
-- `components` to be compressed, in the format `"{component_name} {component_name} ..."`; look in AMReX Header files to determine the name of components, as input must match names in Header files exactly. Also, components must be listed in the same order they appear in the Header file.
+- `components` to be compressed, in the format `"{component_name} {component_name} ..."`; look in AMReX Header files (e.g. `plt07400/Header`) to determine the name of components, as input must match names in Header files exactly. Also, components must be listed in the same order they appear in the Header file.
 - `keep`, the percentage used to calculate the threshold for keeping wavelet coefficients. Higher values lead to less compression but higher accuracy/lower loss. To start, try keep=0.99, 0.999, 0.9999 in `-estimate` mode.
 - `compressedDir`, the directory where the compressed data will be written
 
