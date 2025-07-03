@@ -147,9 +147,18 @@ std::vector<std::string> format_files(std::string data_dir,
 
         if (current >= first && current <= last) {
             files.push_back(entry.path().string());
-            spdlog::info("{}", entry.path().string());
         }
 
+    }
+
+    // Sort files based on clean_string(path)
+    std::sort(files.begin(), files.end(),
+              [](const std::string& a, const std::string& b) {
+                  return clean_string(a) < clean_string(b);
+              });
+
+    for (const auto& file : files) {
+        spdlog::info("{}", file);
     }
 
     return files;
