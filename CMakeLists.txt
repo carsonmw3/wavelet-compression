@@ -10,33 +10,33 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SOURCES
-    grid.h
-    preprocess.cpp
-    preprocess.h
-    readandwrite.cpp
-    readandwrite.h
-    box-structs.h
-    compressor.cpp
-    compressor.h
-    decompressor.cpp
-    decompressor.h
-    calc-loss.cpp
-    calc-loss.h
-    writeplotfile.cpp
-    writeplotfile.h
-    iterator.h
-    argparse.cpp
-    argparse.h
-    tmpdir.h
-    modes.h
-    modes.cpp
+    src/grid.h
+    src/preprocess.cpp
+    src/preprocess.h
+    src/readandwrite.cpp
+    src/readandwrite.h
+    src/box-structs.h
+    src/compressor.cpp
+    src/compressor.h
+    src/decompressor.cpp
+    src/decompressor.h
+    src/calc-loss.cpp
+    src/calc-loss.h
+    src/writeplotfile.cpp
+    src/writeplotfile.h
+    src/iterator.h
+    src/argparse.cpp
+    src/argparse.h
+    src/tmpdir.h
+    src/modes.h
+    src/modes.cpp
 )
 
-add_executable(wavelet-compression main.cpp ${SOURCES})
+add_executable(wavelet-compression src/main.cpp ${SOURCES})
 
 target_compile_definitions(wavelet-compression PRIVATE DOCTEST_CONFIG_DISABLE)
 
-add_executable(wavelet-compression-tests test.cpp ${SOURCES})
+add_executable(wavelet-compression-tests src/test.cpp ${SOURCES})
 
 include(GNUInstallDirs)
 install(TARGETS wavelet-compression
