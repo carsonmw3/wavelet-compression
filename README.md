@@ -1,5 +1,5 @@
 # Wavelet-based compression for AMR data
-A tool to compress Adaptive Mesh Refinement data in hopes of being able to store more of it. Allows for compression/loss tradeoffs depending on needs.
+A tool to compress Adaptive Mesh Refinement data in hopes of being able to store more of it. Allows for compression/loss tradeoffs according to `keep` parameter depending on needs.
 
 ## Installation
 Downloading and compiling the required packages for this tool can be done by running the `install_deps.py` script, which will create a `third_party` directory.
@@ -16,16 +16,16 @@ You should then be able to run `./wavelet-compression` followed by the options d
 ## Usage
 There are three main modes that `./wavelet-compression` can be run from:
 - Compression mode with `-c`: Compresses data into a specified directory
-- Decompression mode with `-d`: Decompresses data compressed with `./wavelet-compression` from a specified directory
+- Decompression mode with `-d`: Decompresses data compressed with `./wavelet-compression` from a specified directory back into AMReX plotfiles 
 - Estimate mode with `-estimate`: runs a short test with a limited amount of data to give an estimate of the following compression metrics:
-  - (1) Root Mean Squared Error (RMSE) of original data vs. decompressed data, i.e. on average, the difference of any given data value across the dataset from its corresponding original after compression/decompression,
+  - (1) Root Mean Squared Error (RMSE) of original data vs. decompressed data, i.e. on average, the difference between any given data value in the decompressed dataset and its corresponding value in the original dataset,
   - (2) Adjusted loss metric (RMSE divided by data range),
-  - (3) compressed size (as percentage of original size).
+  - (3) compressed data size (as percentage of original size).
 
 For the compression and estimate modes, prior to the flag, the user must specify:
 - `datadir`, the path to the raw AMReX plotfiles to be compressed
 - `minfile`, the name of the directory in `datadir` containing the first (inclusive) timestep being compressed
-- `maxfile`, the name of the directory in `datadir` containing highest (inclusive) timestep being compressed
+- `maxfile`, the name of the directory in `datadir` containing the last (inclusive) timestep being compressed
   - Note: `minfile` and `maxfile` should be the full name of the directory, including non-digit characters. The code will automatically look for analagous directories with names containing numbers that fall between `minfile` and `maxfile`, and indicate which files will be compressed. For example, if `minfile="plt07400"` and `maxfile="plt07800"`, any directory with a similarly formatted name ending with a number between 7400 and 7800 will be compressed.
 - `minlevel`, the lowest (inclusive) refinement level being compressed
 - `maxlevel`, the highest (inclusive) refinement level being compressed
